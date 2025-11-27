@@ -1,89 +1,47 @@
-# ═══════════════════════════════════════════════════════════════
-#  Musafir — .gitignore
-# ═══════════════════════════════════════════════════════════════
-
-# ─── Dependencies ────────────────────────────────────────────
+# Dependencies
 node_modules/
-__pycache__/
-*.pyc
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# ─── Python Virtual Environments ─────────────────────────────
-venv/
-.venv/
-*.egg-info/
-
-# ─── Environment Variables (secrets) ─────────────────────────
-.env
-.env.local
-.env.*.local
-!.env.example
-
-# ─── Build / Cache ───────────────────────────────────────────
-.expo/
-dist/
-build/
-web-build/
-*.tsbuildinfo
-.metro-health-check*
-
-# ─── ML Model Binaries (~10 GB — download separately) ───────
-backend/bge-base-en-v1.5/
-backend/bge-reranker-base/
+# AI Model Files - Heavy models excluded from repo
+all-mpnet-base-v2-onnx/
+bge-base-en-v1.5/
+bge-reranker-base/
+Ollama/
 *.safetensors
 *.bin
 *.onnx
-*.onnx.data
+ollama-*.txt
+server-log.txt
+test-output.txt
 
-# ─── Audio Files (~5 GB — stream or host externally) ─────────
-AudioStreamService/
-*.mp3
-*.wav
+# Large vector index files (exceed GitHub 100MB limit)
+hadith_vector_index.json
+vector_index.json
 
-# ─── Large Archives ─────────────────────────────────────────
-*.zip
-*.tar.gz
-*.rar
-*.7z
+# Environment Variables
+# .env files are now pushed for team sharing
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# ─── Vector Databases & Indexes ─────────────────────────────
-services/ai/chroma_db/
-services/ai 2/
-chroma_db/
-backend/vector_index.json
-
-# ─── OS / IDE ────────────────────────────────────────────────
-.DS_Store
-Thumbs.db
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# ─── Logs & Temp ─────────────────────────────────────────────
-*.log
-logs/
-server-log.txt
-test-output.txt
-ollama-*.txt
-npm-debug.*
-yarn-debug.*
-yarn-error.*
+# OS
+.DS_Store
+Thumbs.db
 
-# ─── Native Build Artifacts ─────────────────────────────────
-/ios
-/android
-*.jks
-*.p8
-*.p12
-*.key
-*.mobileprovision
-*.orig.*
-*.pem
-.kotlin/
+# Logs
+logs/
+*.log
+
+# Testing
 coverage/
 .nyc_output/
-
-# ─── PDFs (keep docs as markdown) ───────────────────────────
-docs/reports/*.pdf
-docs/slides/*.pdf
