@@ -1,0 +1,17 @@
+{
+  "name": "musafir-backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": ["travel", "musafir", "api"],
+  "author": "",
+  "license": "ISC",
+  "description": "Backend API for Musafir travel app",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.2.1"
+  }
+}
