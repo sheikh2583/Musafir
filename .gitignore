@@ -3,8 +3,9 @@
 # Project Root
 node_modules/
 .DS_Store
-.env
-.env.local
+# .env files are shared with team - MongoDB Atlas credentials included
+# .env
+# .env.local
 
 # IDE
 .vscode/
