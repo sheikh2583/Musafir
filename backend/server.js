@@ -24,10 +24,12 @@ mongoose
 // Import Routes
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
+const messageRoutes = require('./routes/message.routes');
 
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/messages', messageRoutes);
 
 // Health Check Route
 app.get('/api/health', (req, res) => {
