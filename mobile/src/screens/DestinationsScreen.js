@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,9 @@ const fallbackDestinations = [
   { id: 4, name: 'Dubai', country: 'UAE', description: 'City of Gold' },
   { id: 5, name: 'London', country: 'UK', description: 'Historic and vibrant capital' },
 ];
+
+// Key extractor function defined outside component for performance
+const keyExtractor = (item) => item.id.toString();
 
 export default function DestinationsScreen({ navigation }) {
   const [destinations, setDestinations] = useState([]);
@@ -88,7 +91,7 @@ export default function DestinationsScreen({ navigation }) {
       <FlatList
         data={destinations}
         renderItem={renderDestination}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={keyExtractor}
         contentContainerStyle={styles.listContainer}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2196F3']} />
