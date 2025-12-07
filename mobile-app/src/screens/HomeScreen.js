@@ -9,10 +9,16 @@ export default function HomeScreen() {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [userData, setUserData] = useState(user);
 
   useEffect(() => {
     fetchMessages();
+    fetchUserData();
   }, []);
+
+  useEffect(() => {
+    setUserData(user);
+  }, [user]);
 
   const fetchMessages = async () => {
     try {
@@ -20,6 +26,15 @@ export default function HomeScreen() {
       setMessages(response.data);
     } catch (error) {
       console.error('Fetch messages error:', error);
+    }
+  };
+
+  const fetchUserData = async () => {
+    try {
+      const response = await api.get('/auth/me');
+      setUserData(response.data);
+    } catch (error) {
+      console.error('Fetch user error:', error);
     }
   };
 
@@ -44,7 +59,7 @@ export default function HomeScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchMessages();
+    await Promise.all([fetchMessages(), fetchUserData()]);
     setRefreshing(false);
   };
 
@@ -62,9 +77,14 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView 
+      style={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
       <Text style={styles.title}>As-salamu alaykum</Text>
-      <Text style={styles.subtitle}>Welcome, {user?.name || 'User'}</Text>
+      <Text style={styles.subtitle}>Welcome, {userData?.name}</Text>
 
       <View style={styles.messageInputContainer}>
         <TextInput
@@ -86,12 +106,7 @@ export default function HomeScreen() {
 
       <Text style={styles.messagesTitle}>Community Messages</Text>
 
-      <ScrollView
-        style={styles.messagesContainer}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
+      <View style={styles.messagesContainer}>
         {messages.length === 0 ? (
           <Text style={styles.noMessages}>No messages yet. Be the first to post!</Text>
         ) : (
@@ -105,8 +120,8 @@ export default function HomeScreen() {
             </View>
           ))
         )}
-      </ScrollView>
-    </View>
+      </View>
+    </ScrollView>
   );
 }
 

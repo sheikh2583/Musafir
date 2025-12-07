@@ -23,4 +23,9 @@ router.put('/:id', protect, userController.updateUser);
 // @access  Private/Admin
 router.delete('/:id', protect, authorize('admin'), userController.deleteUser);
 
+// @route   DELETE /api/user/me
+// @desc    Delete own account
+// @access  Private
+router.delete('/me/delete', protect, userController.deleteOwnAccount);
+
 module.exports = router;
