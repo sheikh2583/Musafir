@@ -61,46 +61,53 @@ export default function ProfileScreen() {
   };
 
   return (
-    <ScrollView 
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
-      <View style={styles.profileHeader}>
-        <Text style={styles.avatar}>{userData?.name?.[0]?.toUpperCase() || 'U'}</Text>
-        <Text style={styles.name}>{userData?.name || 'User'}</Text>
-        <Text style={styles.email}>{userData?.email || ''}</Text>
-      </View>
-
-      <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-        <Text style={styles.buttonText}>Logout</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity 
-        style={[styles.deleteButton, deleting && styles.buttonDisabled]} 
-        onPress={handleDeleteAccount}
-        disabled={deleting}
+    <View style={styles.container}>
+      <ScrollView 
+        style={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
-        {deleting ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Delete Account</Text>
-        )}
-      </TouchableOpacity>
+        <View style={styles.profileHeader}>
+          <Text style={styles.avatar}>{userData?.name?.[0]?.toUpperCase() || 'U'}</Text>
+          <Text style={styles.name}>{userData?.name || 'User'}</Text>
+          <Text style={styles.email}>{userData?.email || ''}</Text>
+        </View>
+      </ScrollView>
 
-      <Text style={styles.warningText}>
-        Deleting your account will remove all your data permanently.
-      </Text>
-    </ScrollView>
+      <View style={styles.bottomContainer}>
+        <TouchableOpacity style={styles.logoutButton} onPress={logout}>
+          <Text style={styles.buttonText}>Logout</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.deleteButton, deleting && styles.buttonDisabled]} 
+          onPress={handleDeleteAccount}
+          disabled={deleting}
+        >
+          {deleting ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Delete Account</Text>
+          )}
+        </TouchableOpacity>
+
+        <Text style={styles.warningText}>
+          Deleting your account will remove all your data permanently.
+        </Text>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
     backgroundColor: '#fff',
+  },
+  scrollContent: {
+    flex: 1,
+    padding: 20,
   },
   profileHeader: {
     alignItems: 'center',
@@ -129,19 +136,25 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
+  bottomContainer: {
+    padding: 20,
+    paddingBottom: 10,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
+  },
   logoutButton: {
     backgroundColor: '#d32f2f',
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 20,
   },
   deleteButton: {
     backgroundColor: '#8b0000',
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
-    marginTop: 15,
+    marginTop: 12,
   },
   buttonDisabled: {
     backgroundColor: '#999',
@@ -154,8 +167,8 @@ const styles = StyleSheet.create({
   warningText: {
     textAlign: 'center',
     color: '#999',
-    fontSize: 12,
-    marginTop: 20,
-    paddingHorizontal: 20,
+    fontSize: 11,
+    marginTop: 12,
+    paddingHorizontal: 10,
   },
 });
