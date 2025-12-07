@@ -1,22 +1,98 @@
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
+  const [deleting, setDeleting] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [userData, setUserData] = useState(user);
+
+  useEffect(() => {
+    setUserData(user);
+  }, [user]);
+
+  const fetchUserData = async () => {
+    try {
+      const response = await api.get('/auth/me');
+      setUserData(response.data);
+    } catch (error) {
+      console.error('Fetch user error:', error);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchUserData();
+    setRefreshing(false);
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'Are you sure you want to delete your account? This action cannot be undone. All your data including messages will be permanently removed.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: confirmDelete,
+        },
+      ]
+    );
+  };
+
+  const confirmDelete = async () => {
+    setDeleting(true);
+    try {
+      await api.delete('/users/me/delete');
+      Alert.alert('Account Deleted', 'Your account has been permanently deleted.');
+      logout();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to delete account. Please try again.');
+      console.error('Delete account error:', error);
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   return (
-    <View style={styles.container}>
+    <ScrollView 
+      style={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
       <View style={styles.profileHeader}>
-        <Text style={styles.avatar}>{user?.name?.[0]?.toUpperCase() || 'U'}</Text>
-        <Text style={styles.name}>{user?.name || 'User'}</Text>
-        <Text style={styles.email}>{user?.email || ''}</Text>
+        <Text style={styles.avatar}>{userData?.name?.[0]?.toUpperCase() || 'U'}</Text>
+        <Text style={styles.name}>{userData?.name || 'User'}</Text>
+        <Text style={styles.email}>{userData?.email || ''}</Text>
       </View>
 
-      <TouchableOpacity style={styles.button} onPress={logout}>
+      <TouchableOpacity style={styles.logoutButton} onPress={logout}>
         <Text style={styles.buttonText}>Logout</Text>
       </TouchableOpacity>
-    </View>
+
+      <TouchableOpacity 
+        style={[styles.deleteButton, deleting && styles.buttonDisabled]} 
+        onPress={handleDeleteAccount}
+        disabled={deleting}
+      >
+        {deleting ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.buttonText}>Delete Account</Text>
+        )}
+      </TouchableOpacity>
+
+      <Text style={styles.warningText}>
+        Deleting your account will remove all your data permanently.
+      </Text>
+    </ScrollView>
   );
 }
 
@@ -53,16 +129,33 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
-  button: {
+  logoutButton: {
     backgroundColor: '#d32f2f',
     padding: 15,
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 20,
   },
+  deleteButton: {
+    backgroundColor: '#8b0000',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 15,
+  },
+  buttonDisabled: {
+    backgroundColor: '#999',
+  },
   buttonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  warningText: {
+    textAlign: 'center',
+    color: '#999',
+    fontSize: 12,
+    marginTop: 20,
+    paddingHorizontal: 20,
   },
 });

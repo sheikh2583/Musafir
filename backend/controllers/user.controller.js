@@ -1,4 +1,5 @@
 const User = require('../models/User.model');
+const Message = require('../models/Message.model');
 
 // @desc    Get all users
 // @route   GET /api/users
@@ -95,6 +96,29 @@ exports.deleteUser = async (req, res) => {
     await user.deleteOne();
 
     res.json({ message: 'User removed successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+};
+
+// @desc    Delete own account
+// @route   DELETE /api/user/me
+// @access  Private
+exports.deleteOwnAccount = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    // Delete all messages posted by this user
+    await Message.deleteMany({ user: userId });
+
+    // Delete user account
+    await User.findByIdAndDelete(userId);
+
+    res.json({ 
+      message: 'Account deleted successfully. All your data has been removed.',
+      success: true 
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error', error: error.message });

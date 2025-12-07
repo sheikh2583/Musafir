@@ -32,7 +32,12 @@ export const AuthProvider = ({ children }) => {
     try {
       const data = await authService.login(email, password);
       await AsyncStorage.setItem('token', data.token);
-      setUser(data.user);
+      setUser({
+        _id: data._id,
+        name: data.name,
+        email: data.email,
+        phoneNumber: data.phoneNumber,
+      });
       setIsAuthenticated(true);
       return { success: true };
     } catch (error) {
@@ -44,7 +49,12 @@ export const AuthProvider = ({ children }) => {
     try {
       const data = await authService.register(name, email, password, phoneNumber);
       await AsyncStorage.setItem('token', data.token);
-      setUser(data.user);
+      setUser({
+        _id: data._id,
+        name: data.name,
+        email: data.email,
+        phoneNumber: data.phoneNumber,
+      });
       setIsAuthenticated(true);
       return { success: true };
     } catch (error) {
