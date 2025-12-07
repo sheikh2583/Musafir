@@ -194,7 +194,4 @@ npm install
 - Backend running?
 - Same WiFi?
 - Correct IP in api.js?
-
 ---
-
-**That's it! 🚀**
