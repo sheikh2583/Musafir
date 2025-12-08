@@ -11,6 +11,8 @@ import RegisterScreen from '../screens/RegisterScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
+import ExploreScreen from '../screens/ExploreScreen';
+import CommunityScreen from '../screens/CommunityScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -51,6 +53,10 @@ function MainTabs() {
 
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Explore') {
+            iconName = focused ? 'compass' : 'compass-outline';
+          } else if (route.name === 'Community') {
+            iconName = focused ? 'people' : 'people-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           }
@@ -63,6 +69,8 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="Home" component={HomeStack} />
+      <Tab.Screen name="Explore" component={ExploreScreen} />
+      <Tab.Screen name="Community" component={CommunityScreen} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
