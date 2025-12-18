@@ -11,6 +11,10 @@ import RegisterScreen from '../screens/RegisterScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
+import QuranScreen from '../screens/QuranScreen';
+import SurahScreen from '../screens/SurahScreen';
+import HadithScreen from '../screens/HadithScreen';
+import HadithCollectionScreen from '../screens/HadithCollectionScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -42,6 +46,48 @@ function HomeStack() {
   );
 }
 
+function QuranStack() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen 
+        name="QuranList" 
+        component={QuranScreen} 
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="Surah" 
+        component={SurahScreen} 
+        options={{
+          headerStyle: { backgroundColor: '#2E7D32' },
+          headerTintColor: '#FFF',
+          headerTitleStyle: { fontWeight: 'bold' }
+        }}
+      />
+    </Stack.Navigator>
+  );
+}
+
+function HadithStack() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen 
+        name="HadithList" 
+        component={HadithScreen} 
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="HadithCollection" 
+        component={HadithCollectionScreen} 
+        options={{
+          headerStyle: { backgroundColor: '#1565C0' },
+          headerTintColor: '#FFF',
+          headerTitleStyle: { fontWeight: 'bold' }
+        }}
+      />
+    </Stack.Navigator>
+  );
+}
+
 function MainTabs() {
   return (
     <Tab.Navigator
@@ -51,6 +97,10 @@ function MainTabs() {
 
           if (route.name === 'Home') {
             iconName = focused ? 'home' : 'home-outline';
+          } else if (route.name === 'Quran') {
+            iconName = focused ? 'book' : 'book-outline';
+          } else if (route.name === 'Hadith') {
+            iconName = focused ? 'library' : 'library-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'person' : 'person-outline';
           }
@@ -63,6 +113,8 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="Home" component={HomeStack} />
+      <Tab.Screen name="Quran" component={QuranStack} />
+      <Tab.Screen name="Hadith" component={HadithStack} />
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );
