@@ -25,11 +25,15 @@ mongoose
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const messageRoutes = require('./routes/message.routes');
+const quranRoutes = require('./routes/quran.routes');
+const hadithRoutes = require('./routes/hadith.routes');
 
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/quran', quranRoutes);
+app.use('/api/hadith', hadithRoutes);
 
 // Health Check Route
 app.get('/api/health', (req, res) => {
@@ -55,8 +59,10 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 5000;
+const HOST = '0.0.0.0'; // Listen on all network interfaces
 
-app.listen(PORT, () => {
+app.listen(PORT, HOST, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
   console.log(`📱 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🌐 Accessible at http://localhost:${PORT} and http://192.168.0.178:${PORT}`);
 });
