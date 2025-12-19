@@ -1,4 +1,4 @@
-const fs = require('fs');
+﻿const fs = require('fs');
 const path = require('path');
 
 /**
@@ -17,42 +17,42 @@ const COLLECTIONS_META = {
   bukhari: {
     id: 'bukhari',
     name: 'Sahih Bukhari',
-    nameArabic: 'صحيح البخاري',
+    nameArabic: 'ØµØ­ÙŠØ­ Ø§Ù„Ø¨Ø®Ø§Ø±ÙŠ',
     compiler: 'Imam Muhammad ibn Ismail al-Bukhari',
     totalHadiths: 7277
   },
   muslim: {
     id: 'muslim',
     name: 'Sahih Muslim',
-    nameArabic: 'صحيح مسلم',
+    nameArabic: 'ØµØ­ÙŠØ­ Ù…Ø³Ù„Ù…',
     compiler: 'Imam Muslim ibn al-Hajjaj',
     totalHadiths: 7562
   },
   abudawud: {
     id: 'abudawud',
     name: 'Sunan Abu Dawood',
-    nameArabic: 'سنن أبي داود',
+    nameArabic: 'Ø³Ù†Ù† Ø£Ø¨ÙŠ Ø¯Ø§ÙˆØ¯',
     compiler: 'Imam Abu Dawood as-Sijistani',
     totalHadiths: 5274
   },
   tirmidhi: {
     id: 'tirmidhi',
     name: 'Jami` at-Tirmidhi',
-    nameArabic: 'جامع الترمذي',
+    nameArabic: 'Ø¬Ø§Ù…Ø¹ Ø§Ù„ØªØ±Ù…Ø°ÙŠ',
     compiler: 'Imam Muhammad ibn Isa at-Tirmidhi',
     totalHadiths: 3956
   },
   nasai: {
     id: 'nasai',
     name: 'Sunan an-Nasa\'i',
-    nameArabic: 'سنن النسائي',
+    nameArabic: 'Ø³Ù†Ù† Ø§Ù„Ù†Ø³Ø§Ø¦ÙŠ',
     compiler: 'Imam Ahmad ibn Shu\'ayb an-Nasa\'i',
     totalHadiths: 5764
   },
   ibnmajah: {
     id: 'ibnmajah',
     name: 'Sunan Ibn Majah',
-    nameArabic: 'سنن ابن ماجه',
+    nameArabic: 'Ø³Ù†Ù† Ø§Ø¨Ù† Ù…Ø§Ø¬Ù‡',
     compiler: 'Imam Muhammad ibn Yazid ibn Majah',
     totalHadiths: 4341
   }
@@ -66,7 +66,9 @@ function loadBookFile(collection) {
   if (!fs.existsSync(filePath)) {
     return null;
   }
-  const data = fs.readFileSync(filePath, 'utf8');
+  const data =
+  if (!data) return null;
+  fs.readFileSync(filePath, 'utf8');
   return JSON.parse(data);
 }
 
