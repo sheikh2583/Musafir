@@ -4,6 +4,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# AI Model Files
+all-mpnet-base-v2-onnx/
+
 # Environment Variables
 # .env files are now pushed for team sharing
 .env.local
