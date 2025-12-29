@@ -5,29 +5,32 @@ const quranController = require('../controllers/quran.controller');
 /**
  * Quran Routes
  * 
- * All routes serve data from local MongoDB only.
- * No external API dependencies.
+ * All routes serve data from local JSON files only.
+ * No external API or database dependencies.
  */
+
+// Get statistics - MUST be before other routes
+router.get('/stats', quranController.getStats);
 
 // Get all surahs metadata
 router.get('/surahs', quranController.getAllSurahs);
 
+// Get all juz metadata
+router.get('/juz', quranController.getAllJuz);
+
+// Get specific juz
+router.get('/juz/:juzNumber', quranController.getJuz);
+
+// Search ayahs
+router.get('/search', quranController.searchAyah);
+
 // Get specific surah metadata
 router.get('/surah/:surahNumber/metadata', quranController.getSurahMetadata);
 
+// Get specific ayah
+router.get('/surah/:surahNumber/ayah/:ayahNumber', quranController.getAyah);
+
 // Get all ayahs for a surah
 router.get('/surah/:surahNumber', quranController.getSurah);
-
-// Get specific ayah
-router.get('/ayah/:surahNumber/:ayahNumber', quranController.getAyah);
-
-// Get juz
-router.get('/juz/:juzNumber', quranController.getJuz);
-
-// Get page (mushaf page view)
-router.get('/page/:pageNumber', quranController.getPage);
-
-// Get statistics
-router.get('/stats', quranController.getStats);
 
 module.exports = router;
