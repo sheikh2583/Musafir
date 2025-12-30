@@ -27,13 +27,15 @@ const userRoutes = require('./routes/user.routes');
 const messageRoutes = require('./routes/message.routes');
 const quranRoutes = require('./routes/quran.routes');
 const hadithRoutes = require('./routes/hadith.routes');
+const quranSearchRoutes = require('./ml-search/routes/quran.routes');
 
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
-app.use('/api/quran', quranRoutes);
 app.use('/api/hadith', hadithRoutes);
+app.use('/api/quran', quranSearchRoutes); // Quran semantic search - MUST be before basic quran routes
+app.use('/api/quran', quranRoutes);
 
 // Health Check Route
 app.get('/api/health', (req, res) => {

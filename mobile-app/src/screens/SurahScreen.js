@@ -54,11 +54,8 @@ export default function SurahScreen({ route, navigation }) {
     try {
       setLoading(true);
       setError(null);
-      const response = await getSurah(surahNumber, true);
-      
-      if (response.success) {
-        setAyahs(response.data);
-      }
+      const ayahsData = await getSurah(surahNumber, true);
+      setAyahs(ayahsData);
     } catch (err) {
       console.error('Error loading surah:', err);
       setError('Failed to load surah. Please try again.');

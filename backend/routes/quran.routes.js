@@ -21,8 +21,8 @@ router.get('/juz', quranController.getAllJuz);
 // Get specific juz
 router.get('/juz/:juzNumber', quranController.getJuz);
 
-// Search ayahs
-router.get('/search', quranController.searchAyah);
+// Basic text search (simple keyword matching)
+router.get('/basic-search', quranController.searchAyah);
 
 // Get specific surah metadata
 router.get('/surah/:surahNumber/metadata', quranController.getSurahMetadata);
