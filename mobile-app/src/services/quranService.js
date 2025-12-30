@@ -14,7 +14,8 @@ import api from './api';
 export const getAllSurahs = async () => {
   try {
     const response = await api.get('/quran/surahs');
-    return response.data;
+    // Backend returns { success, count, data }
+    return response.data.data || [];
   } catch (error) {
     console.error('Error fetching surahs:', error);
     throw error;
@@ -47,7 +48,8 @@ export const getSurah = async (surahNumber, includeTranslation = true) => {
     const response = await api.get(`/quran/surah/${surahNumber}`, {
       params: { includeTranslation }
     });
-    return response.data;
+    // Backend returns { success, surahNumber, metadata, ayahCount, data }
+    return response.data.data || [];
   } catch (error) {
     console.error(`Error fetching surah ${surahNumber}:`, error);
     throw error;
@@ -114,12 +116,36 @@ export const getQuranStats = async () => {
   }
 };
 
+/**
+ * Search verses using semantic/NLP search
+ * @param {string} query - Natural language search query
+ * @param {object} options - Search options (limit, includeContext, etc.)
+ * @returns {Promise} Search results with verses
+ */
+export const searchVerses = async (query, options = {}) => {
+  try {
+    const params = {
+      q: query,
+      limit: options.limit || 30,
+      includeContext: options.includeContext !== false
+    };
+    
+    const response = await api.get('/quran/search', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error searching verses:', error);
+    throw error;
+  }
+};
+
 export default {
+  getSurahs: getAllSurahs, // Alias for consistency
   getAllSurahs,
   getSurahMetadata,
   getSurah,
   getAyah,
   getJuz,
   getPage,
-  getQuranStats
+  getQuranStats,
+  searchVerses
 };

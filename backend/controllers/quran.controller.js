@@ -96,6 +96,7 @@ exports.getAllSurahs = async (req, res) => {
       surahNumber: idx + 1,
       name: surah.title,
       nameArabic: surah.titleAr,
+      arabicName: surah.titleAr,
       englishName: surah.title,
       englishNameTranslation: surah.title,
       revelationType: surah.type,

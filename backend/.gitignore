@@ -6,6 +6,9 @@ yarn-error.log*
 
 # AI Model Files
 all-mpnet-base-v2-onnx/
+Ollama/
+ollama-*.txt
+test-*.js
 
 # Environment Variables
 # .env files are now pushed for team sharing

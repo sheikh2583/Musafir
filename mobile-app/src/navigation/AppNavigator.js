@@ -13,6 +13,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import QuranScreen from '../screens/QuranScreen';
 import SurahScreen from '../screens/SurahScreen';
+import VerseSearchScreen from '../screens/VerseSearchScreen';
 import HadithScreen from '../screens/HadithScreen';
 import HadithCollectionScreen from '../screens/HadithCollectionScreen';
 
@@ -62,6 +63,11 @@ function QuranStack() {
           headerTintColor: '#FFF',
           headerTitleStyle: { fontWeight: 'bold' }
         }}
+      />
+      <Stack.Screen 
+        name="VerseSearch" 
+        component={VerseSearchScreen} 
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );
