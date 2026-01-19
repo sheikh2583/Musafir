@@ -9,8 +9,8 @@ const path = require('path');
  * Optimized for offline-first operation.
  */
 
-// Path to hadith JSON files
-const HADITH_BASE_PATH = path.join(__dirname, '../../hadith-json/db/by_chapter/the_9_books');
+// Path to hadith JSON files (by_book structure)
+const HADITH_BASE_PATH = path.join(__dirname, '../../hadith-json/db/by_book/the_9_books');
 
 // Collection metadata
 const COLLECTIONS_META = {
@@ -19,70 +19,55 @@ const COLLECTIONS_META = {
     name: 'Sahih Bukhari',
     nameArabic: 'صحيح البخاري',
     compiler: 'Imam Muhammad ibn Ismail al-Bukhari',
-    totalChapters: 97
+    totalHadiths: 7277
   },
   muslim: {
     id: 'muslim',
     name: 'Sahih Muslim',
     nameArabic: 'صحيح مسلم',
     compiler: 'Imam Muslim ibn al-Hajjaj',
-    totalChapters: 56
+    totalHadiths: 7562
   },
   abudawud: {
     id: 'abudawud',
     name: 'Sunan Abu Dawood',
     nameArabic: 'سنن أبي داود',
     compiler: 'Imam Abu Dawood as-Sijistani',
-    totalChapters: 43
+    totalHadiths: 5274
   },
   tirmidhi: {
     id: 'tirmidhi',
     name: 'Jami` at-Tirmidhi',
     nameArabic: 'جامع الترمذي',
     compiler: 'Imam Muhammad ibn Isa at-Tirmidhi',
-    totalChapters: 46
+    totalHadiths: 3956
   },
   nasai: {
     id: 'nasai',
     name: 'Sunan an-Nasa\'i',
     nameArabic: 'سنن النسائي',
     compiler: 'Imam Ahmad ibn Shu\'ayb an-Nasa\'i',
-    totalChapters: 51
+    totalHadiths: 5764
   },
   ibnmajah: {
     id: 'ibnmajah',
     name: 'Sunan Ibn Majah',
     nameArabic: 'سنن ابن ماجه',
     compiler: 'Imam Muhammad ibn Yazid ibn Majah',
-    totalChapters: 37
+    totalHadiths: 4341
   }
 };
 
 /**
- * Helper: Load chapter JSON file
+ * Helper: Load book JSON file
  */
-function loadChapterFile(collection, chapterNumber) {
-  const filePath = path.join(HADITH_BASE_PATH, collection, `${chapterNumber}.json`);
+function loadBookFile(collection) {
+  const filePath = path.join(HADITH_BASE_PATH, `${collection}.json`);
   if (!fs.existsSync(filePath)) {
     return null;
   }
   const data = fs.readFileSync(filePath, 'utf8');
   return JSON.parse(data);
-}
-
-/**
- * Helper: Get list of chapter files for a collection
- */
-function getChapterFiles(collection) {
-  const collectionPath = path.join(HADITH_BASE_PATH, collection);
-  if (!fs.existsSync(collectionPath)) {
-    return [];
-  }
-  const files = fs.readdirSync(collectionPath);
-  return files
-    .filter(file => file.endsWith('.json'))
-    .map(file => parseInt(file.replace('.json', '')))
-    .sort((a, b) => a - b);
 }
 
 /**
@@ -122,17 +107,21 @@ exports.getChapters = async (req, res) => {
       });
     }
 
-    const chapterNumbers = getChapterFiles(collection);
-    const chapters = chapterNumbers.map(num => {
-      const data = loadChapterFile(collection, num);
-      return {
-        chapterNumber: num,
-        chapterId: data?.chapter?.id || num,
-        arabicTitle: data?.chapter?.arabic || data?.metadata?.arabic?.introduction || '',
-        englishTitle: data?.chapter?.english || data?.metadata?.english?.introduction || '',
-        hadithCount: data?.hadiths?.length || 0
-      };
-    });
+    const bookData = loadBookFile(collection);
+    if (!bookData || !bookData.chapters) {
+      return res.status(404).json({
+        success: false,
+        message: 'Collection data not found'
+      });
+    }
+
+    const chapters = bookData.chapters.map(ch => ({
+      chapterNumber: ch.id,
+      chapterId: ch.id,
+      arabicTitle: ch.arabic || '',
+      englishTitle: ch.english || '',
+      hadithCount: 0 // Would need to count from hadiths array
+    }));
 
     res.status(200).json({
       success: true,
@@ -172,38 +161,41 @@ exports.getChapter = async (req, res) => {
       });
     }
 
-    const data = loadChapterFile(collection, chapterNum);
-    if (!data) {
+    const bookData = loadBookFile(collection);
+    if (!bookData || !bookData.hadiths) {
       return res.status(404).json({
         success: false,
-        message: `Chapter ${chapterNum} not found in ${collection}`
+        message: `Collection ${collection} not found`
       });
     }
 
+    // Find chapter metadata
+    const chapterMeta = bookData.chapters.find(ch => ch.id === chapterNum);
+    
+    // Filter hadiths by chapterId
+    const chapterHadiths = bookData.hadiths.filter(h => h.chapterId === chapterNum);
+
     // Transform hadiths to match frontend expectations
-    const transformedHadiths = data.hadiths ? data.hadiths.map(hadith => {
-      const uniqueHadithNumber = (chapterNum * 10000) + (hadith.idInBook || hadith.id);
-      return {
-        ...hadith,
-        collection: collection,
-        hadithNumber: uniqueHadithNumber,
-        arabicText: hadith.arabic,
-        translationEn: hadith.english?.text || hadith.english?.narrator,
-        metadata: {
-          narrator: hadith.english?.narrator,
-          reference: `${COLLECTIONS_META[collection].name} ${hadith.idInBook || hadith.id}`,
-          chapterId: hadith.chapterId,
-          bookId: hadith.bookId
-        }
-      };
-    }) : [];
+    const transformedHadiths = chapterHadiths.map(hadith => ({
+      id: hadith.id,
+      collection: collection,
+      hadithNumber: hadith.id, // Simple ID
+      arabicText: hadith.arabic,
+      translationEn: hadith.english?.text || '',
+      metadata: {
+        narrator: hadith.english?.narrator || '',
+        reference: `${COLLECTIONS_META[collection].name} ${hadith.id}`,
+        chapterId: hadith.chapterId,
+        bookId: hadith.bookId
+      }
+    }));
 
     res.status(200).json({
       success: true,
       collection,
       chapterNumber: chapterNum,
-      metadata: data.metadata,
-      chapter: data.chapter,
+      metadata: bookData.metadata,
+      chapter: chapterMeta || { id: chapterNum, arabic: '', english: '' },
       hadithCount: transformedHadiths.length,
       data: transformedHadiths
     });
@@ -239,43 +231,42 @@ exports.getHadith = async (req, res) => {
       });
     }
 
-    // Search through all chapters to find the hadith
-    const chapterNumbers = getChapterFiles(collection);
-    
-    for (const chapterNum of chapterNumbers) {
-      const data = loadChapterFile(collection, chapterNum);
-      if (data && data.hadiths) {
-        const hadith = data.hadiths.find(h => h.id === id || h.idInBook === id);
-        if (hadith) {
-          // Transform hadith to match frontend expectations
-          const uniqueHadithNumber = (chapterNum * 10000) + (hadith.idInBook || hadith.id);
-          const transformedHadith = {
-            ...hadith,
-            collection: collection,
-            hadithNumber: uniqueHadithNumber,
-            arabicText: hadith.arabic,
-            translationEn: hadith.english?.text || hadith.english?.narrator,
-            metadata: {
-              narrator: hadith.english?.narrator,
-              reference: `${COLLECTIONS_META[collection].name} ${hadith.idInBook || hadith.id}`,
-              chapterId: hadith.chapterId,
-              bookId: hadith.bookId
-            }
-          };
-          return res.status(200).json({
-            success: true,
-            collection,
-            chapterNumber: chapterNum,
-            chapter: data.chapter,
-            data: transformedHadith
-          });
-        }
-      }
+    const bookData = loadBookFile(collection);
+    if (!bookData || !bookData.hadiths) {
+      return res.status(404).json({
+        success: false,
+        message: `Collection ${collection} not found`
+      });
     }
 
-    res.status(404).json({
-      success: false,
-      message: `Hadith #${id} not found in ${collection}`
+    // Find hadith by ID
+    const hadith = bookData.hadiths.find(h => h.id === id);
+    
+    if (!hadith) {
+      return res.status(404).json({
+        success: false,
+        message: `Hadith ${id} not found in ${collection}`
+      });
+    }
+
+    // Transform hadith to match frontend expectations
+    const transformedHadith = {
+      id: hadith.id,
+      collection: collection,
+      hadithNumber: hadith.id,
+      arabicText: hadith.arabic,
+      translationEn: hadith.english?.text || '',
+      metadata: {
+        narrator: hadith.english?.narrator || '',
+        reference: `${COLLECTIONS_META[collection].name} ${hadith.id}`,
+        chapterId: hadith.chapterId,
+        bookId: hadith.bookId
+      }
+    };
+
+    return res.status(200).json({
+      success: true,
+      data: transformedHadith
     });
   } catch (error) {
     console.error('Error fetching hadith:', error.message);
@@ -312,35 +303,32 @@ exports.searchHadith = async (req, res) => {
 
     const searchTerm = q.toLowerCase();
     const results = [];
-    const chapterNumbers = getChapterFiles(collection);
-
-    for (const chapterNum of chapterNumbers) {
-      const data = loadChapterFile(collection, chapterNum);
-      if (data && data.hadiths) {
-        for (const hadith of data.hadiths) {
-          const textToSearch = lang === 'arabic' 
-            ? hadith.arabic 
-            : (hadith.english?.text || '');
-          
-          if (textToSearch.toLowerCase().includes(searchTerm)) {
-            // Transform hadith to match frontend expectations
-            const uniqueHadithNumber = (chapterNum * 10000) + (hadith.idInBook || hadith.id);
-            results.push({
-              ...hadith,
-              collection: collection,
-              hadithNumber: uniqueHadithNumber,
-              arabicText: hadith.arabic,
-              translationEn: hadith.english?.text || hadith.english?.narrator,
-              chapterNumber: chapterNum,
-              chapterTitle: data.chapter?.english || '',
-              metadata: {
-                narrator: hadith.english?.narrator,
-                reference: `${COLLECTIONS_META[collection].name} ${hadith.idInBook || hadith.id}`,
-                chapterId: hadith.chapterId,
-                bookId: hadith.bookId
-              }
-            });
-          }
+    
+    // Load hadith data from by_book structure
+    const bookData = loadBookFile(collection);
+    if (bookData && bookData.hadiths) {
+      for (const hadith of bookData.hadiths) {
+        const textToSearch = lang === 'arabic' 
+          ? hadith.arabic 
+          : (hadith.english?.text || '');
+        
+        if (textToSearch.toLowerCase().includes(searchTerm)) {
+          // Transform hadith to match frontend expectations
+          results.push({
+            id: hadith.id,
+            collection: collection,
+            hadithNumber: hadith.id,
+            arabicText: hadith.arabic,
+            translationEn: hadith.english?.text || '',
+            chapterId: hadith.chapterId,
+            bookId: hadith.bookId,
+            metadata: {
+              narrator: hadith.english?.narrator || '',
+              reference: `${COLLECTIONS_META[collection].name} ${hadith.id}`,
+              chapterId: hadith.chapterId,
+              bookId: hadith.bookId
+            }
+          });
         }
       }
     }
@@ -379,37 +367,41 @@ exports.getCollectionHadith = async (req, res) => {
       });
     }
 
-    // Get all chapters
-    const chapterNumbers = getChapterFiles(collection);
-    let allHadiths = [];
-
-    // Load hadiths from all chapters and transform for frontend
-    for (const chapterNum of chapterNumbers) {
-      if (bookNumber && chapterNum !== bookNumber) continue;
-      
-      const data = loadChapterFile(collection, chapterNum);
-      if (data && data.hadiths) {
-        // Transform each hadith to match frontend expectations
-        const transformedHadiths = data.hadiths.map(hadith => {
-          // Create globally unique hadith number using chapter-based formula
-          const uniqueHadithNumber = (chapterNum * 10000) + (hadith.idInBook || hadith.id);
-          return {
-            ...hadith,
-            collection: collection,
-            hadithNumber: uniqueHadithNumber,
-            arabicText: hadith.arabic,
-            translationEn: hadith.english?.text || hadith.english?.narrator,
-            metadata: {
-              narrator: hadith.english?.narrator,
-              reference: `${COLLECTIONS_META[collection].name} ${hadith.idInBook || hadith.id}`,
-              chapterId: hadith.chapterId,
-              bookId: hadith.bookId
-            }
-          };
-        });
-        allHadiths = allHadiths.concat(transformedHadiths);
-      }
+    // Load hadith data from by_book structure
+    const bookData = loadBookFile(collection);
+    if (!bookData || !bookData.hadiths) {
+      return res.status(404).json({
+        success: false,
+        message: `Collection data not found for ${collection}`
+      });
     }
+
+    let allHadiths = bookData.hadiths;
+
+    // Filter by book number if specified
+    if (bookNumber) {
+      allHadiths = allHadiths.filter(h => h.bookId === bookNumber);
+    }
+
+    // Transform each hadith to match frontend expectations
+    const transformedHadiths = allHadiths.map(hadith => {
+      return {
+        id: hadith.id,
+        collection: collection,
+        hadithNumber: hadith.id,
+        arabicText: hadith.arabic,
+        translationEn: hadith.english?.text || '',
+        metadata: {
+          narrator: hadith.english?.narrator || '',
+          reference: `${COLLECTIONS_META[collection].name} ${hadith.id}`,
+          chapterId: hadith.chapterId,
+          bookId: hadith.bookId
+        },
+        chapterId: hadith.chapterId,
+        bookId: hadith.bookId
+      };
+    });
+    allHadiths = transformedHadiths;
 
     // Pagination
     const startIndex = (page - 1) * limit;
@@ -457,35 +449,33 @@ exports.getHadithByNumber = async (req, res) => {
       });
     }
 
-    // Search through all chapters
-    const chapterNumbers = getChapterFiles(collection);
-    for (const chapterNum of chapterNumbers) {
-      const data = loadChapterFile(collection, chapterNum);
-      if (data && data.hadiths) {
-        const hadith = data.hadiths.find(h => h.id === hadithNum || h.idInBook === hadithNum);
-        if (hadith) {
-          // Transform hadith to match frontend expectations
-          const uniqueHadithNumber = (chapterNum * 10000) + (hadith.idInBook || hadith.id);
-          const transformedHadith = {
-            ...hadith,
-            collection: collection,
-            hadithNumber: uniqueHadithNumber,
-            arabicText: hadith.arabic,
-            translationEn: hadith.english?.text || hadith.english?.narrator,
-            metadata: {
-              narrator: hadith.english?.narrator,
-              reference: `${COLLECTIONS_META[collection].name} ${hadith.idInBook || hadith.id}`,
-              chapterId: hadith.chapterId,
-              bookId: hadith.bookId
-            }
-          };
-          return res.status(200).json({
-            success: true,
-            collection,
-            hadithNumber: hadithNum,
-            data: transformedHadith
-          });
-        }
+    // Load hadith data from by_book structure
+    const bookData = loadBookFile(collection);
+    if (bookData && bookData.hadiths) {
+      const hadith = bookData.hadiths.find(h => h.id === hadithNum || h.idInBook === hadithNum);
+      if (hadith) {
+        // Transform hadith to match frontend expectations
+        const transformedHadith = {
+          id: hadith.id,
+          collection: collection,
+          hadithNumber: hadith.id,
+          arabicText: hadith.arabic,
+          translationEn: hadith.english?.text || '',
+          metadata: {
+            narrator: hadith.english?.narrator || '',
+            reference: `${COLLECTIONS_META[collection].name} ${hadith.id}`,
+            chapterId: hadith.chapterId,
+            bookId: hadith.bookId
+          },
+          chapterId: hadith.chapterId,
+          bookId: hadith.bookId
+        };
+        return res.status(200).json({
+          success: true,
+          collection,
+          hadithNumber: hadithNum,
+          data: transformedHadith
+        });
       }
     }
 
@@ -517,20 +507,22 @@ exports.getBooks = async (req, res) => {
       });
     }
 
-    const chapterNumbers = getChapterFiles(collection);
-    const books = [];
-
-    for (const chapterNum of chapterNumbers) {
-      const data = loadChapterFile(collection, chapterNum);
-      if (data && data.metadata) {
-        books.push({
-          bookNumber: chapterNum,
-          chapterNumber: chapterNum,
-          ...data.metadata,
-          hadithCount: data.hadiths ? data.hadiths.length : 0
-        });
-      }
+    // Load hadith data from by_book structure
+    const bookData = loadBookFile(collection);
+    if (!bookData || !bookData.chapters) {
+      return res.status(404).json({
+        success: false,
+        message: `Collection data not found for ${collection}`
+      });
     }
+
+    const books = bookData.chapters.map(chapter => ({
+      bookNumber: chapter.id,
+      chapterNumber: chapter.id,
+      englishTitle: chapter.english || '',
+      arabicTitle: chapter.arabic || '',
+      hadithCount: bookData.hadiths.filter(h => h.chapterId === chapter.id).length
+    }));
 
     res.status(200).json({
       success: true,
@@ -556,19 +548,18 @@ exports.getStats = async (req, res) => {
     const collections = Object.keys(COLLECTIONS_META);
     
     const stats = collections.map(collection => {
-      const chapterNumbers = getChapterFiles(collection);
+      const bookData = loadBookFile(collection);
       let totalHadiths = 0;
+      let chapterCount = 0;
       
-      chapterNumbers.forEach(chapterNum => {
-        const data = loadChapterFile(collection, chapterNum);
-        if (data && data.hadiths) {
-          totalHadiths += data.hadiths.length;
-        }
-      });
+      if (bookData) {
+        totalHadiths = bookData.hadiths ? bookData.hadiths.length : 0;
+        chapterCount = bookData.chapters ? bookData.chapters.length : 0;
+      }
 
       return {
         collection,
-        chapters: chapterNumbers.length,
+        chapters: chapterCount,
         hadiths: totalHadiths
       };
     });

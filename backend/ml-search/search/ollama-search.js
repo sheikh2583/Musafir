@@ -105,26 +105,21 @@ class OllamaQuranSearch {
   async search(query, options = {}) {
     if (!this.initialized) await this.initialize();
 
-    console.log(`\n[OllamaSearch] 🔍 New search request: "${query}"`);
-    console.log(`[OllamaSearch] Options: limit=${options.limit || 30}`);
+    console.log(`[OllamaSearch] 🔍 New search request: "${query}"`);
+    console.log(`[OllamaSearch] Options: limit=${options.limit || 7}`);
     const startTime = Date.now();
 
     try {
-      const prompt = `Query: "${query}"
+      const prompt = `"${query}"
 
-Find 10-12 Quran verses that CLEARLY relate to this topic.
+List exactly 7 MOST relevant Quran verses that directly address this.
 
-CRITERIA for each verse:
-1. Must EXPLICITLY mention or discuss the topic
-2. Connection should be OBVIOUS to any reader
-3. Verse content directly addresses the query concept
-4. No vague or tangential matches
+Only include verses with EXPLICIT connection.
+No tangential matches.
 
-Think: What are the key concepts in "${query}"? List verses where these concepts are clearly present.
+Format: 2:255,3:103,4:1,5:2,6:162,7:56,17:23
 
-Return 10-12 verse IDs in format: 2:255,3:103,4:1
-
-Verses: `;
+IDs: `;
 
       const response = await this._callOllama(prompt);
       
@@ -151,7 +146,7 @@ Verses: `;
         console.log(`[OllamaSearch] ⚠️ Only ${validResults.length} verses found - query may be too specific`);
       }
       
-      const results = validResults.slice(0, Math.min(options.limit || 12, 12));
+      const results = validResults.slice(0, Math.min(options.limit || 7, 7));
 
       const duration = Date.now() - startTime;
       console.log(`[OllamaSearch] ✅ ${results.length} verses (${duration}ms)`);
@@ -189,12 +184,12 @@ Verses: `;
         prompt: prompt,
         stream: true,
         options: {
-          temperature: 0.05,
-          num_predict: 70,
-          top_k: 5,
-          top_p: 0.65,
-          repeat_penalty: 1.7,
-          stop: ["\n\n", "\nCRITERIA", "\nThink"]
+          temperature: 0.0,
+          num_predict: 40,
+          top_k: 1,
+          top_p: 0.3,
+          repeat_penalty: 2.2,
+          stop: ["\n\n", "\n", "Query", "Note"]
         },
         raw: true
       });

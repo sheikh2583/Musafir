@@ -1,10 +1,11 @@
 import api from './api';
+import LOCAL_QURAN_DATA from '../data/quran_data.json';
 
 /**
  * Quran Service
  * 
  * All API calls for Quran features.
- * Data is served from local MongoDB - fully offline after initial load.
+ * Data is served from LOCAL BUNDLE (offline) for reliability.
  */
 
 /**
@@ -12,14 +13,13 @@ import api from './api';
  * @returns {Promise} Array of surah metadata
  */
 export const getAllSurahs = async () => {
-  try {
-    const response = await api.get('/quran/surahs');
-    // Backend returns { success, count, data }
-    return response.data.data || [];
-  } catch (error) {
-    console.error('Error fetching surahs:', error);
-    throw error;
-  }
+  // Return local data mapped to expectation
+  return LOCAL_QURAN_DATA.map(s => ({
+    number: parseInt(s.index),
+    name: s.name,
+    englishName: s.name, // Simplified
+    numberOfAyahs: s.count || Object.keys(s.verse).length
+  }));
 };
 
 /**
@@ -28,13 +28,13 @@ export const getAllSurahs = async () => {
  * @returns {Promise} Surah metadata
  */
 export const getSurahMetadata = async (surahNumber) => {
-  try {
-    const response = await api.get(`/quran/surah/${surahNumber}/metadata`);
-    return response.data;
-  } catch (error) {
-    console.error(`Error fetching surah ${surahNumber} metadata:`, error);
-    throw error;
-  }
+  const s = LOCAL_QURAN_DATA.find(x => parseInt(x.index) === surahNumber);
+  if (!s) throw new Error('Surah not found');
+  return {
+    number: parseInt(s.index),
+    name: s.name,
+    numberOfAyahs: Object.keys(s.verse).length
+  };
 };
 
 /**
@@ -44,16 +44,22 @@ export const getSurahMetadata = async (surahNumber) => {
  * @returns {Promise} Array of ayahs
  */
 export const getSurah = async (surahNumber, includeTranslation = true) => {
-  try {
-    const response = await api.get(`/quran/surah/${surahNumber}`, {
-      params: { includeTranslation }
-    });
-    // Backend returns { success, surahNumber, metadata, ayahCount, data }
-    return response.data.data || [];
-  } catch (error) {
-    console.error(`Error fetching surah ${surahNumber}:`, error);
-    throw error;
-  }
+  const s = LOCAL_QURAN_DATA.find(x => parseInt(x.index) === surahNumber);
+  if (!s) throw new Error('Surah not found');
+
+  // Convert verse object { "verse_1": "text" } to array
+  const ayahs = Object.entries(s.verse).map(([key, text], index) => ({
+    number: index + 1,
+    text: text,
+    numberInSurah: index + 1,
+    juz: s.juz ? s.juz[0].index : 1 // Simplified
+  }));
+
+  return {
+    number: parseInt(s.index),
+    name: s.name,
+    ayahs: ayahs
+  };
 };
 
 /**
@@ -129,7 +135,7 @@ export const searchVerses = async (query, options = {}) => {
       limit: options.limit || 30,
       includeContext: options.includeContext !== false
     };
-    
+
     const response = await api.get('/quran/search', { params });
     return response.data;
   } catch (error) {

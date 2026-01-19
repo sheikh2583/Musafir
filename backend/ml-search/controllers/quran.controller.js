@@ -1,22 +1,22 @@
 /**
  * Quran Search Controller
- * Handles semantic search API requests
+ * Handles RAG-based vector search API requests
  */
 
-const OllamaQuranSearch = require('../search/ollama-search');
+const { getSearchEngine: getVectorSearchEngine } = require('../search/vector-search');
 
 // Singleton instance
-let searchEngine = null;
+let vectorEngine = null;
 
 /**
- * Get or create search engine instance
+ * Get or create vector search engine instance
  */
 const getSearchEngine = async () => {
-  if (!searchEngine) {
-    searchEngine = new OllamaQuranSearch();
-    await searchEngine.initialize();
+  if (!vectorEngine) {
+    vectorEngine = getVectorSearchEngine();
+    await vectorEngine.initialize();
   }
-  return searchEngine;
+  return vectorEngine;
 };
 
 /**
@@ -49,7 +49,7 @@ exports.search = async (req, res) => {
       });
     }
 
-    // Get search engine
+    // Get vector search engine
     const engine = await getSearchEngine();
 
     // Parse options
@@ -79,10 +79,11 @@ exports.search = async (req, res) => {
 exports.getInfo = async (req, res) => {
   try {
     const engine = await getSearchEngine();
-    const info = engine.getInfo();
+    const info = await engine.getInfo();
     
     res.json({
       success: true,
+      method: 'rag-vector-search',
       data: info
     });
   } catch (error) {

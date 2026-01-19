@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arabic Dot-Based Swipe Writing System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .container {
+            text-align: center;
+            padding: 20px;
+            max-width: 900px;
+            width: 100%;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .instructions {
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 0.9em;
+        }
+
+        #canvas {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            cursor: crosshair;
+            touch-action: none;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid white;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            font-size: 1.1em;
+            min-height: 40px;
+        }
+
+        .success {
+            background: rgba(76, 175, 80, 0.8) !important;
+        }
+
+        .error {
+            background: rgba(244, 67, 54, 0.8) !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖊️ نظام الكتابة العربية بالنقاط</h1>
+        <div class="instructions">
+            <strong>Instructions:</strong> Follow the numbered dots in order. Start at dot 1 and swipe through each dot in sequence. Each stroke must be completed before moving to the next.
+        </div>
+        
+        <canvas id="canvas" width="800" height="400"></canvas>
+        
+        <div class="controls">
+            <button onclick="loadWord('كتب')">كتب (kataba)</button>
+            <button onclick="loadWord('سلام')">سلام (salaam)</button>
+            <button onclick="loadWord('باب')">باب (baab)</button>
+            <button onclick="resetCanvas()">Reset ↻</button>
+        </div>
+        
+        <div class="status" id="status">Select a word to begin</div>
+    </div>
+
+    <script>
+        // ==========================================
+        // STROKE DATA REPOSITORY
+        // ==========================================
+        // Predefined stroke paths for Arabic letters
+        // Coordinates are normalized (0-1) and will be scaled to letter bounding boxes
+        
+        const STROKE_DATA = {
+            // ب - Ba (variants)
+            'ب': {
+                'isolated': {
+                    strokes: [
+                        { path: [[0.1, 0.3], [0.5, 0.2], [0.9, 0.3], [0.9, 0.6], [0.1, 0.6]] },
+                        { path: [[0.5, 0.8], [0.5, 0.85]] } // dot below
+                    ]
+                },
+                'initial': {
+                    strokes: [
+                        { path: [[0.1, 0.4], [0.5, 0.3], [0.9, 0.4]] },
+                        { path: [[0.5, 0.7], [0.5, 0.75]] }
+                    ]
+                },
+                'medial': {
+                    strokes: [
+                        { path: [[0.1, 0.4], [0.5, 0.3], [0.9, 0.4]] },
+                        { path: [[0.5, 0.7], [0.5, 0.75]] }
+                    ]
+                },
+                'final': {
+                    strokes: [
+                        { path: [[0.1, 0.4], [0.5, 0.3], [0.9, 0.4], [0.9, 0.7], [0.1, 0.7]] },
+                        { path: [[0.5, 0.85], [0.5, 0.9]] }
+                    ]
+                }
+            },
+            
+            // ك - Kaf
+            'ك': {
+                'isolated': {
+                    strokes: [
+                        { path: [[0.7, 0.1], [0.7, 0.5], [0.3, 0.5]] },
+                        { path: [[0.3, 0.5], [0.5, 0.3]] },
+                        { path: [[0.5, 0.5], [0.9, 0.5], [0.9, 0.8], [0.1, 0.8]] }
+                    ]
+                },
+                'initial': {
+                    strokes: [
+                        { path: [[0.6, 0.1], [0.6, 0.4], [0.3, 0.4]] },
+                        { path: [[0.3, 0.4], [0.5, 0.2]] },
+                        { path: [[0.5, 0.4], [0.9, 0.5]] }
+                    ]
+                },
+                'medial': {
+                    strokes: [
+                        { path: [[0.1, 0.4], [0.5, 0.3], [0.9, 0.4]] }
+                    ]
+                },
+                'final': {
+                    strokes: [
+                        { path: [[0.5, 0.1], [0.5, 0.4], [0.2, 0.4]] },
+                        { path: [[0.2, 0.4], [0.4, 0.2]] },
+                        { path: [[0.4, 0.4], [0.9, 0.5], [0.9, 0.8], [0.1, 0.8]] }
+                    ]
+                }
+            },
+            
+            // ت - Ta
+            'ت': {
+                'isolated': {
+                    strokes: [
+                        { path: [[0.1, 0.5], [0.5, 0.4], [0.9, 0.5], [0.9, 0.8], [0.1, 0.8]] },
+                        { path: [[0.35, 0.15], [0.35, 0.2]] },
+                        { path: [[0.65, 0.15], [0.65, 0.2]] }
+                    ]
+                },
+                'initial': {
+                    strokes: [
+                        { path: [[0.1, 0.5], [0.5, 0.4], [0.9, 0.5]] },
+                        { path: [[0.35, 0.15], [0.35, 0.2]] },
+                        { path: [[0.65, 0.15], [0.65, 0.2]] }
+                    ]
+                },
+                'medial': {
+                    strokes: [
+                        { path: [[0.1, 0.5], [0.5, 0.4], [0.9, 0.5]] },
+                        { path: [[0.35, 0.15], [0.35, 0.2]] },
+                        { path: [[0.65, 0.15], [0.65, 0.2]] }
+                    ]
+                },
+                'final': {
+                    strokes: [
+                        { path: [[0.1, 0.5], [0.5, 0.4], [0.9, 0.5], [0.9, 0.8], [0.1, 0.8]] },
+                        { path: [[0.35, 0.15], [0.35, 0.2]] },
+                        { path: [[0.65, 0.15], [0.65, 0.2]] }
+                    ]
+                }
+            },
+            
+            // س - Seen
+            'س': {
+                'isolated': {
+                    strokes: [
+                        { path: [[0.1, 0.4], [0.2, 0.3], [0.3, 0.4], [0.4, 0.3], [0.5, 0.4], [0.6, 0.3], [0.9, 0.5], [0.9, 0.8], [0.1, 0.8]] }
+                    ]
+                },
+                'initial': {
+                    strokes: [
+                        { path: [[0.1, 0.4], [0.25, 0.3], [0.4, 0.4], [0.55, 0.3], [0.7, 0.4], [0.85, 0.3], [0.95, 0.4]] }
+                    ]
+                },
+                'medial': {
+                    strokes: [
+                        { path: [[0.1, 0.4], [0.3, 0.3], [0.5, 0.4], [0.7, 0.3], [0.9, 0.4]] }
+                    ]
+                },
+                'final': {
+                    strokes: [
+                        { path: [[0.1, 0.4], [0.25, 0.3], [0.4, 0.4], [0.55, 0.3], [0.7, 0.4], [0.9, 0.5], [0.9, 0.8], [0.1, 0.8]] }
+                    ]
+                }
+            },
+            
+            // ل - Lam
+            'ل': {
+                'isolated': {
+                    strokes: [
+                        { path: [[0.5, 0.1], [0.5, 0.7], [0.7, 0.8], [0.9, 0.8]] }
+                    ]
+                },
+                'initial': {
+                    strokes: [
+                        { path: [[0.3, 0.1], [0.3, 0.5], [0.9, 0.5]] }
+                    ]
+                },
+                'medial': {
+                    strokes: [
+                        { path: [[0.3, 0.1], [0.3, 0.5], [0.9, 0.5]] }
+                    ]
+                },
+                'final': {
+                    strokes: [
+                        { path: [[0.4, 0.1], [0.4, 0.7], [0.6, 0.8], [0.9, 0.8]] }
+                    ]
+                }
+            },
+            
+            // ا - Alif
+            'ا': {
+                'isolated': {
+                    strokes: [
+                        { path: [[0.5, 0.2], [0.5, 0.9]] }
+                    ]
+                },
+                'initial': {
+                    strokes: [
+                        { path: [[0.5, 0.2], [0.5, 0.9]] }
+                    ]
+                },
+                'medial': {
+                    strokes: [
+                        { path: [[0.5, 0.2], [0.5, 0.9]] }
+                    ]
+                },
+                'final': {
+                    strokes: [
+                        { path: [[0.5, 0.2], [0.5, 0.9]] }
+                    ]
+                }
+            },
+            
+            // م - Meem
+            'م': {
+                'isolated': {
+                    strokes: [
+                        { path: [[0.7, 0.3], [0.7, 0.6], [0.5, 0.7], [0.3, 0.6], [0.3, 0.4], [0.5, 0.3], [0.7, 0.4]] },
+                        { path: [[0.5, 0.7], [0.5, 0.9]] }
+                    ]
+                },
+                'initial': {
+                    strokes: [
+                        { path: [[0.2, 0.3], [0.4, 0.4], [0.6, 0.3], [0.8, 0.4], [0.95, 0.5]] }
+                    ]
+                },
+                'medial': {
+                    strokes: [
+                        { path: [[0.1, 0.4], [0.3, 0.3], [0.5, 0.4], [0.7, 0.3], [0.9, 0.4]] }
+                    ]
+                },
+                'final': {
+                    strokes: [
+                        { path: [[0.2, 0.3], [0.4, 0.5], [0.6, 0.3], [0.8, 0.5], [0.8, 0.7], [0.1, 0.8]] }
+                    ]
+                }
+            }
+        };
+
+        // ==========================================
+        // CANVAS AND CONTEXT SETUP
+        // ==========================================
+        
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const status = document.getElementById('status');
+
+        let currentWord = '';
+        let letterBoxes = [];
+        let dots = [];
+        let currentDotIndex = 0;
+        let currentStrokeIndex = 0;
+        let isDrawing = false;
+        let lastValidDot = null;
+
+        // ==========================================
+        // ARABIC TEXT PROCESSING
+        // ==========================================
+        
+        /**
+         * Determine the contextual form of each Arabic letter
+         * Forms: isolated, initial, medial, final
+         */
+        function getLetterForms(word) {
+            const letters = Array.from(word);
+            const forms = [];
+            
+            // Non-connecting letters in Arabic
+            const nonConnecting = ['ا', 'د', 'ذ', 'ر', 'ز', 'و'];
+            
+            for (let i = 0; i < letters.length; i++) {
+                const letter = letters[i];
+                const prevConnects = i > 0 && !nonConnecting.includes(letters[i - 1]);
+                const nextConnects = i < letters.length - 1 && !nonConnecting.includes(letter);
+                
+                let form;
+                if (!prevConnects && !nextConnects) {
+                    form = 'isolated';
+                } else if (!prevConnects && nextConnects) {
+                    form = 'initial';
+                } else if (prevConnects && nextConnects) {
+                    form = 'medial';
+                } else {
+                    form = 'final';
+                }
+                
+                forms.push({ letter, form });
+            }
+            
+            return forms;
+        }
+
+        /**
+         * Compute bounding boxes for each letter in the rendered word
+         * This is the critical alignment step between visual text and stroke data
+         */
+        function computeLetterBoundingBoxes(word, x, y, fontSize) {
+            const letters = Array.from(word);
+            const boxes = [];
+            
+            ctx.save();
+            ctx.font = `${fontSize}px 'Traditional Arabic', 'Arial', sans-serif`;
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            
+            // Measure total word width
+            const totalWidth = ctx.measureText(word).width;
+            let currentX = x + totalWidth; // Start from right (RTL)
+            
+            const letterForms = getLetterForms(word);
+            
+            // Process each letter from right to left
+            for (let i = 0; i < letters.length; i++) {
+                const letter = letters[i];
+                const letterWidth = ctx.measureText(letter).width;
+                
+                // Approximate bounding box
+                // Arabic letters typically occupy different vertical spaces
+                const box = {
+                    letter: letter,
+                    form: letterForms[i].form,
+                    x: currentX - letterWidth,
+                    y: y - fontSize * 0.5,
+                    width: letterWidth,
+                    height: fontSize * 1.0,
+                    centerX: currentX - letterWidth / 2,
+                    centerY: y
+                };
+                
+                boxes.push(box);
+                currentX -= letterWidth;
+            }
+            
+            ctx.restore();
+            return boxes;
+        }
+
+        // ==========================================
+        // DOT GENERATION
+        // ==========================================
+        
+        /**
+         * Generate dots along a stroke path
+         * Dots are evenly spaced and contain order information
+         */
+        function generateDotsForStroke(path, strokeIndex, dotsPerStroke = 8) {
+            const dots = [];
+            
+            for (let i = 0; i < dotsPerStroke; i++) {
+                const t = i / (dotsPerStroke - 1); // 0 to 1
+                const point = getPointOnPath(path, t);
+                
+                dots.push({
+                    x: point.x,
+                    y: point.y,
+                    radius: 12,
+                    strokeIndex: strokeIndex,
+                    dotIndex: i,
+                    globalIndex: -1, // Will be set later
+                    hit: false
+                });
+            }
+            
+            return dots;
+        }
+
+        /**
+         * Interpolate a point along a path at parameter t (0 to 1)
+         */
+        function getPointOnPath(path, t) {
+            if (path.length === 0) return { x: 0, y: 0 };
+            if (path.length === 1) return { x: path[0][0], y: path[0][1] };
+            
+            // Calculate total path length
+            let totalLength = 0;
+            const segments = [];
+            
+            for (let i = 0; i < path.length - 1; i++) {
+                const dx = path[i + 1][0] - path[i][0];
+                const dy = path[i + 1][1] - path[i][1];
+                const len = Math.sqrt(dx * dx + dy * dy);
+                segments.push({ start: path[i], end: path[i + 1], length: len });
+                totalLength += len;
+            }
+            
+            // Find target distance along path
+            const targetDist = t * totalLength;
+            let currentDist = 0;
+            
+            for (const seg of segments) {
+                if (currentDist + seg.length >= targetDist) {
+                    const segT = (targetDist - currentDist) / seg.length;
+                    return {
+                        x: seg.start[0] + (seg.end[0] - seg.start[0]) * segT,
+                        y: seg.start[1] + (seg.end[1] - seg.start[1]) * segT
+                    };
+                }
+                currentDist += seg.length;
+            }
+            
+            return { x: path[path.length - 1][0], y: path[path.length - 1][1] };
+        }
+
+        /**
+         * Scale normalized stroke paths to letter bounding boxes
+         */
+        function scaleStrokeToBox(strokePath, box) {
+            return strokePath.map(point => [
+                box.x + point[0] * box.width,
+                box.y + point[1] * box.height
+            ]);
+        }
+
+        // ==========================================
+        // WORD LOADING AND INITIALIZATION
+        // ==========================================
+        
+        function loadWord(word) {
+            currentWord = word;
+            resetCanvas();
+            
+            // Render guide text (low opacity)
+            const fontSize = 120;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw guide text
+            ctx.save();
+            ctx.globalAlpha = 0.25;
+            ctx.font = `${fontSize}px 'Traditional Arabic', 'Arial', sans-serif`;
+            ctx.fillStyle = '#333';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(word, centerX, centerY);
+            ctx.restore();
+            
+            // Compute letter bounding boxes
+            letterBoxes = computeLetterBoundingBoxes(word, centerX, centerY, fontSize);
+            
+            // Debug: draw bounding boxes
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
+            ctx.lineWidth = 1;
+            letterBoxes.forEach(box => {
+                ctx.strokeRect(box.x, box.y, box.width, box.height);
+            });
+            
+            // Generate dots from stroke data
+            dots = [];
+            let globalDotIndex = 0;
+            
+            letterBoxes.forEach((box, letterIndex) => {
+                const letterData = STROKE_DATA[box.letter];
+                
+                if (!letterData || !letterData[box.form]) {
+                    console.warn(`No stroke data for ${box.letter} (${box.form})`);
+                    return;
+                }
+                
+                const strokes = letterData[box.form].strokes;
+                
+                strokes.forEach((stroke, strokeIndex) => {
+                    const scaledPath = scaleStrokeToBox(stroke.path, box);
+                    const strokeDots = generateDotsForStroke(
+                        scaledPath,
+                        globalDotIndex / 100, // Simplified stroke tracking
+                        Math.max(stroke.path.length, 6)
+                    );
+                    
+                    strokeDots.forEach(dot => {
+                        dot.globalIndex = globalDotIndex++;
+                        dots.push(dot);
+                    });
+                });
+            });
+            
+            drawDots();
+            updateStatus(`Trace "${word}" - Start at dot 1`);
+        }
+
+        // ==========================================
+        // RENDERING
+        // ==========================================
+        
+        function drawDots() {
+            dots.forEach((dot, index) => {
+                ctx.beginPath();
+                ctx.arc(dot.x, dot.y, dot.radius, 0, Math.PI * 2);
+                
+                if (dot.hit) {
+                    ctx.fillStyle = '#4CAF50';
+                } else if (index === currentDotIndex) {
+                    ctx.fillStyle = '#2196F3';
+                } else {
+                    ctx.fillStyle = 'rgba(100, 100, 100, 0.5)';
+                }
+                
+                ctx.fill();
+                
+                // Draw dot number
+                if (!dot.hit && index <= currentDotIndex + 2) {
+                    ctx.fillStyle = 'white';
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(dot.globalIndex + 1, dot.x, dot.y);
+                }
+            });
+        }
+
+        function redraw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Redraw guide text
+            if (currentWord) {
+                ctx.save();
+                ctx.globalAlpha = 0.25;
+                ctx.font = '120px Traditional Arabic, Arial, sans-serif';
+                ctx.fillStyle = '#333';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(currentWord, canvas.width / 2, canvas.height / 2);
+                ctx.restore();
+            }
+            
+            drawDots();
+        }
+
+        // ==========================================
+        // SWIPE TRACKING AND VALIDATION
+        // ==========================================
+        
+        function checkDotHit(x, y) {
+            if (currentDotIndex >= dots.length) return false;
+            
+            const dot = dots[currentDotIndex];
+            const distance = Math.sqrt((x - dot.x) ** 2 + (y - dot.y) ** 2);
+            
+            if (distance <= dot.radius * 1.5) {
+                dot.hit = true;
+                currentDotIndex++;
+                lastValidDot = dot;
+                
+                // Check for completion
+                if (currentDotIndex >= dots.length) {
+                    updateStatus('✅ Perfect! You completed the word!', 'success');
+                    setTimeout(() => {
+                        showCelebration();
+                    }, 500);
+                }
+                
+                return true;
+            }
+            
+            return false;
+        }
+
+        function showCelebration() {
+            ctx.save();
+            ctx.globalAlpha = 0.9;
+            ctx.fillStyle = '#4CAF50';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 48px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('🎉 Excellent Work! 🎉', canvas.width / 2, canvas.height / 2 - 30);
+            
+            ctx.font = '24px Arial';
+            ctx.fillText('Word completed successfully', canvas.width / 2, canvas.height / 2 + 20);
+            ctx.restore();
+        }
+
+        function updateStatus(message, type = '') {
+            status.textContent = message;
+            status.className = 'status ' + type;
+        }
+
+        function resetCanvas() {
+            currentDotIndex = 0;
+            currentStrokeIndex = 0;
+            isDrawing = false;
+            lastValidDot = null;
+            
+            if (dots.length > 0) {
+                dots.forEach(dot => dot.hit = false);
+                redraw();
+                updateStatus(`Trace "${currentWord}" - Start at dot 1`);
+            }
+        }
+
+        // ==========================================
+        // EVENT HANDLERS
+        // ==========================================
+        
+        function getCanvasCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            let clientX, clientY;
+            
+            if (e.touches) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            
+            return {
+                x: (clientX - rect.left) * scaleX,
+                y: (clientY - rect.top) * scaleY
+            };
+        }
+
+        function handleStart(e) {
+            if (dots.length === 0) return;
+            e.preventDefault();
+            
+            isDrawing = true;
+            const coords = getCanvasCoordinates(e);
+            
+            if (checkDotHit(coords.x, coords.y)) {
+                redraw();
+                if (currentDotIndex < dots.length) {
+                    updateStatus(`Keep going! Dot ${currentDotIndex + 1} of ${dots.length}`);
+                }
+            }
+        }
+
+        function handleMove(e) {
+            if (!isDrawing || dots.length === 0) return;
+            e.preventDefault();
+            
+            const coords = getCanvasCoordinates(e);
+            
+            if (checkDotHit(coords.x, coords.y)) {
+                redraw();
+                if (currentDotIndex < dots.length) {
+                    updateStatus(`Great! Dot ${currentDotIndex + 1} of ${dots.length}`);
+                }
+            }
+        }
+
+        function handleEnd(e) {
+            isDrawing = false;
+        }
+
+        // Mouse events
+        canvas.addEventListener('mousedown', handleStart);
+        canvas.addEventListener('mousemove', handleMove);
+        canvas.addEventListener('mouseup', handleEnd);
+        canvas.addEventListener('mouseleave', handleEnd);
+
+        // Touch events
+        canvas.addEventListener('touchstart', handleStart);
+        canvas.addEventListener('touchmove', handleMove);
+        canvas.addEventListener('touchend', handleEnd);
+
+        // ==========================================
+        // INITIALIZATION
+        // ==========================================
+        
+        // Load default word on start
+        window.onload = () => {
+            loadWord('كتب');
+        };
+    </script>
+</body>
+</html>

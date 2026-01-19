@@ -90,6 +90,27 @@ export const getHadithStats = async () => {
 };
 
 /**
+ * Search hadiths using semantic/NLP search (Ollama AI)
+ * @param {string} query - Natural language search query
+ * @param {object} options - Search options (limit, etc.)
+ * @returns {Promise} Search results with hadiths
+ */
+export const searchHadiths = async (query, options = {}) => {
+  try {
+    const params = {
+      q: query,
+      limit: options.limit || 30
+    };
+    
+    const response = await api.get('/hadith/search', { params });
+    return response.data;
+  } catch (error) {
+    console.error('Error searching hadiths:', error);
+    throw error;
+  }
+};
+
+/**
  * Collection metadata helper (no API call)
  */
 export const getCollectionMetadata = (collectionId) => {

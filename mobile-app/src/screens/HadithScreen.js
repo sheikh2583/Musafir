@@ -2,27 +2,32 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
+  TextInput,
   FlatList,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
   Platform
 } from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
 import { getCollections, getCollectionMetadata } from '../services/hadithService';
 
 /**
- * HadithScreen - Main Hadith browsing screen
+ * HadithScreen - Main Hadith browsing and search screen
  * 
  * Features:
+ * - Toggle between Browse Collections and Search Hadiths
+ * - AI-powered semantic search across all collections
  * - Display all 6 collections (Sihah Sittah)
  * - Color-coded collection cards
  * - Offline-first
- * - Beautiful, respectful UI
  */
 export default function HadithScreen({ navigation }) {
   const [collections, setCollections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchMode, setSearchMode] = useState('collection'); // 'collection' or 'hadith'
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     loadCollections();
@@ -59,6 +64,12 @@ export default function HadithScreen({ navigation }) {
     });
   };
 
+  const handleHadithSearch = () => {
+    if (searchQuery.trim()) {
+      navigation.navigate('HadithSearchResults', { query: searchQuery.trim() });
+    }
+  };
+
   const renderCollection = ({ item }) => (
     <TouchableOpacity
       style={[styles.collectionCard, { borderLeftColor: item.color }]}
@@ -87,10 +98,21 @@ export default function HadithScreen({ navigation }) {
     </TouchableOpacity>
   );
 
+  const renderEmptySearch = () => (
+    <View style={styles.emptyContainer}>
+      <Icon name="search-outline" size={64} color="#ccc" />
+      <Text style={styles.emptyTitle}>Search Hadiths by Meaning</Text>
+      <Text style={styles.emptyText}>
+        Ask questions or search by topic across all 6 collections.{'\n'}
+        Example: "What did the Prophet say about patience?"
+      </Text>
+    </View>
+  );
+
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#2E7D32" />
+        <ActivityIndicator size="large" color="#1565C0" />
         <Text style={styles.loadingText}>Loading Hadith Collections...</Text>
       </View>
     );
@@ -111,26 +133,72 @@ export default function HadithScreen({ navigation }) {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>الصحاح الستة</Text>
-        <Text style={styles.headerSubtitle}>Sihah Sittah - The Six Authentic Books</Text>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>الصحاح الستة</Text>
+          <Text style={styles.headerSubtitle}>Sihah Sittah - The Six Authentic Books</Text>
+        </View>
       </View>
 
-      {/* Info Card */}
-      <View style={styles.infoCard}>
-        <Text style={styles.infoText}>
-          These are the six most authentic hadith collections in Islam, 
-          compiled by renowned scholars.
-        </Text>
+      {/* Search Mode Toggle */}
+      <View style={styles.toggleContainer}>
+        <TouchableOpacity
+          style={[styles.toggleButton, searchMode === 'collection' && styles.toggleButtonActive]}
+          onPress={() => setSearchMode('collection')}
+        >
+          <Text style={[styles.toggleText, searchMode === 'collection' && styles.toggleTextActive]}>
+            Browse Collections
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.toggleButton, searchMode === 'hadith' && styles.toggleButtonActive]}
+          onPress={() => setSearchMode('hadith')}
+        >
+          <Text style={[styles.toggleText, searchMode === 'hadith' && styles.toggleTextActive]}>
+            Search Hadiths
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      {/* Collections List */}
-      <FlatList
-        data={collections}
-        renderItem={renderCollection}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <Icon name="search-outline" size={20} color="#999" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder={searchMode === 'collection' ? 'Filter collections...' : 'Ask a question or search by meaning...'}
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onSubmitEditing={searchMode === 'hadith' ? handleHadithSearch : undefined}
+          returnKeyType={searchMode === 'hadith' ? 'search' : 'done'}
+        />
+        {searchMode === 'hadith' && searchQuery.trim() && (
+          <TouchableOpacity onPress={handleHadithSearch} style={styles.searchButton}>
+            <Text style={styles.searchButtonText}>Search</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Info box for hadith search mode */}
+      {searchMode === 'hadith' && (
+        <View style={styles.infoBox}>
+          <Icon name="information-circle-outline" size={20} color="#1565C0" />
+          <Text style={styles.infoText}>
+            AI-powered search across all 6 collections
+          </Text>
+        </View>
+      )}
+
+      {/* Content based on mode */}
+      {searchMode === 'collection' ? (
+        <FlatList
+          data={collections}
+          renderItem={renderCollection}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      ) : (
+        renderEmptySearch()
+      )}
     </View>
   );
 }
@@ -153,6 +221,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     alignItems: 'center'
   },
+  headerContent: {
+    alignItems: 'center'
+  },
   headerTitle: {
     fontSize: 28,
     fontWeight: 'bold',
@@ -164,17 +235,108 @@ const styles = StyleSheet.create({
     color: '#E3F2FD',
     textAlign: 'center'
   },
-  infoCard: {
+  toggleContainer: {
+    flexDirection: 'row',
     backgroundColor: '#FFF',
-    margin: 15,
-    padding: 15,
+    marginHorizontal: 15,
+    marginTop: 15,
+    marginBottom: 10,
     borderRadius: 10,
-    borderLeftWidth: 4,
-    borderLeftColor: '#1565C0'
+    padding: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    borderRadius: 8,
+    alignItems: 'center'
+  },
+  toggleButtonActive: {
+    backgroundColor: '#1565C0'
+  },
+  toggleText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#666'
+  },
+  toggleTextActive: {
+    color: '#FFF'
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFF',
+    marginHorizontal: 15,
+    marginBottom: 10,
+    paddingHorizontal: 15,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 8,
+    borderRadius: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2
+  },
+  searchIcon: {
+    marginRight: 10
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#333',
+    paddingVertical: 0
+  },
+  searchButton: {
+    backgroundColor: '#1565C0',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginLeft: 10
+  },
+  searchButtonText: {
+    color: '#FFF',
+    fontWeight: '600',
+    fontSize: 14
+  },
+  infoBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E3F2FD',
+    marginHorizontal: 15,
+    marginBottom: 10,
+    padding: 12,
+    borderRadius: 8
   },
   infoText: {
-    fontSize: 14,
+    fontSize: 13,
+    color: '#1565C0',
+    marginLeft: 8,
+    flex: 1
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    paddingBottom: 100
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 20,
+    marginBottom: 10,
+    textAlign: 'center'
+  },
+  emptyText: {
+    fontSize: 15,
     color: '#666',
+    textAlign: 'center',
     lineHeight: 22
   },
   listContent: {

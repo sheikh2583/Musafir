@@ -29,10 +29,22 @@ const quranRoutes = require('./routes/quran.routes');
 const hadithRoutes = require('./routes/hadith.routes');
 const quranSearchRoutes = require('./ml-search/routes/quran.routes');
 
+let hadithSearchRoutes = null;
+try {
+  hadithSearchRoutes = require('./ml-search/routes/hadith.routes');
+  console.log('✅ Hadith search routes loaded');
+} catch (error) {
+  console.error('❌ Error loading hadith search routes:', error.message);
+  console.error(error.stack);
+}
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
+if (hadithSearchRoutes) {
+  app.use('/api/hadith', hadithSearchRoutes); // Hadith semantic search - MUST be before basic hadith routes
+}
 app.use('/api/hadith', hadithRoutes);
 app.use('/api/quran', quranSearchRoutes); // Quran semantic search - MUST be before basic quran routes
 app.use('/api/quran', quranRoutes);

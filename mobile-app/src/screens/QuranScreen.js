@@ -104,6 +104,23 @@ const QuranScreen = ({ navigation }) => {
           <Text style={styles.headerTitle}>القرآن الكريم</Text>
           <Text style={styles.headerSubtitle}>The Holy Quran</Text>
         </View>
+        <View style={styles.actionsContainer}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => navigation.navigate('ArabicWriting')}
+          >
+            <Icon name="create-outline" size={20} color="#2E7D32" />
+            <Text style={styles.actionButtonText}>Write</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => navigation.navigate('QuranQuiz')}
+          >
+            <Icon name="school-outline" size={20} color="#2E7D32" />
+            <Text style={styles.actionButtonText}>Quiz</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Search Mode Toggle */}
@@ -206,6 +223,30 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 16,
     color: '#E8F5E9',
+  },
+  actionsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 15,
+    gap: 10,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFF',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flex: 1,
+    maxWidth: 160,
+  },
+  actionButtonText: {
+    color: '#2E7D32',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
   },
   toggleContainer: {
     flexDirection: 'row',

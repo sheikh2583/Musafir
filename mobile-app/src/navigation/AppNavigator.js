@@ -16,6 +16,9 @@ import SurahScreen from '../screens/SurahScreen';
 import VerseSearchScreen from '../screens/VerseSearchScreen';
 import HadithScreen from '../screens/HadithScreen';
 import HadithCollectionScreen from '../screens/HadithCollectionScreen';
+import HadithSearchResultsScreen from '../screens/HadithSearchResultsScreen';
+import ArabicWritingScreen from '../screens/ArabicWritingScreen';
+import QuranQuizScreen from '../screens/QuranQuizScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -33,14 +36,14 @@ function AuthStack() {
 function HomeStack() {
   return (
     <Stack.Navigator>
-      <Stack.Screen 
-        name="HomeFeed" 
-        component={HomeScreen} 
+      <Stack.Screen
+        name="HomeFeed"
+        component={HomeScreen}
         options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name="UserProfile" 
-        component={UserProfileScreen} 
+      <Stack.Screen
+        name="UserProfile"
+        component={UserProfileScreen}
         options={{ title: 'User Profile' }}
       />
     </Stack.Navigator>
@@ -50,24 +53,38 @@ function HomeStack() {
 function QuranStack() {
   return (
     <Stack.Navigator>
-      <Stack.Screen 
-        name="QuranList" 
-        component={QuranScreen} 
+      <Stack.Screen
+        name="QuranList"
+        component={QuranScreen}
         options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name="Surah" 
-        component={SurahScreen} 
+      <Stack.Screen
+        name="Surah"
+        component={SurahScreen}
         options={{
           headerStyle: { backgroundColor: '#2E7D32' },
           headerTintColor: '#FFF',
           headerTitleStyle: { fontWeight: 'bold' }
         }}
       />
-      <Stack.Screen 
-        name="VerseSearch" 
-        component={VerseSearchScreen} 
+      <Stack.Screen
+        name="VerseSearch"
+        component={VerseSearchScreen}
         options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ArabicWriting"
+        component={ArabicWritingScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="QuranQuiz"
+        component={QuranQuizScreen}
+        options={{
+          title: 'Quran Vocabulary Quiz',
+          headerStyle: { backgroundColor: '#2E7D32' },
+          headerTintColor: '#FFF',
+        }}
       />
     </Stack.Navigator>
   );
@@ -76,19 +93,24 @@ function QuranStack() {
 function HadithStack() {
   return (
     <Stack.Navigator>
-      <Stack.Screen 
-        name="HadithList" 
-        component={HadithScreen} 
+      <Stack.Screen
+        name="HadithList"
+        component={HadithScreen}
         options={{ headerShown: false }}
       />
-      <Stack.Screen 
-        name="HadithCollection" 
-        component={HadithCollectionScreen} 
+      <Stack.Screen
+        name="HadithCollection"
+        component={HadithCollectionScreen}
         options={{
           headerStyle: { backgroundColor: '#1565C0' },
           headerTintColor: '#FFF',
           headerTitleStyle: { fontWeight: 'bold' }
         }}
+      />
+      <Stack.Screen
+        name="HadithSearchResults"
+        component={HadithSearchResultsScreen}
+        options={{ headerShown: false }}
       />
     </Stack.Navigator>
   );

@@ -7,8 +7,14 @@ node_modules/
 # .env
 # .env.local
 
-# AI Model Files
+# AI Model Files - Heavy models excluded from repo
 backend/all-mpnet-base-v2-onnx/
+backend/bge-base-en-v1.5/
+backend/bge-reranker-base/
+backend/*.safetensors
+backend/*.bin
+backend/*.onnx
+ml-service/
 
 # IDE
 .vscode/
