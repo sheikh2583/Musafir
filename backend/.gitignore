@@ -16,6 +16,10 @@ ollama-*.txt
 server-log.txt
 test-output.txt
 
+# Large vector index files (exceed GitHub 100MB limit)
+hadith_vector_index.json
+vector_index.json
+
 # Environment Variables
 # .env files are now pushed for team sharing
 .env.local
