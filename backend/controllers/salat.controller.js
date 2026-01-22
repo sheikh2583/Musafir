@@ -1,4 +1,4 @@
-const SalatScore = require('../models/SalatScore.model');
+﻿const SalatScore = require('../models/SalatScore.model');
 const User = require('../models/User.model');
 const mongoose = require('mongoose');
 
@@ -254,7 +254,7 @@ exports.getLeaderboard = async (req, res) => {
     const friendIds = (currentUser?.subscriptions || []).map(id => new mongoose.Types.ObjectId(id));
     const selfId = new mongoose.Types.ObjectId(userId);
     
-    console.log(`[Leaderboard] userId=${userId}, friends=${friendIds.length}, filter will include ${friendIds.length + 1} users`);
+    
     
     const filter = {
       [sortField]: { $gt: 0 },
