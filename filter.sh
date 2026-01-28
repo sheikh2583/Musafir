@@ -1,0 +1,1 @@
+if [ "$GIT_COMMIT" = "36527cb9e1040e8945a26b5fa5c6e8bf6c9bcdcf" ]; then export GIT_AUTHOR_NAME="Sohom Sattyam"; export GIT_AUTHOR_EMAIL="sohomsattyam@iut-dhaka.edu"; export GIT_COMMITTER_NAME="Sohom Sattyam"; export GIT_COMMITTER_EMAIL="sohomsattyam@iut-dhaka.edu"; fi

@@ -1,0 +1,1 @@
+if echo "$GIT_COMMIT" | git log --format=%s -1 "$GIT_COMMIT" | grep -q "Add TypeScript definitions for hadith-json"; then export GIT_AUTHOR_NAME="Sohom Sattyam"; export GIT_AUTHOR_EMAIL="sohomsattyam@iut-dhaka.edu"; export GIT_COMMITTER_NAME="Sohom Sattyam"; export GIT_COMMITTER_EMAIL="sohomsattyam@iut-dhaka.edu"; fi
