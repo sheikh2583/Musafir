@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { getSearchEngine } = require('../ml-search/search/vector-search');
 
 /**
  * Quran Controller
@@ -24,7 +25,7 @@ function loadSurahFile(surahNumber, includeTranslation = true) {
   }
   const data = fs.readFileSync(filePath, 'utf8');
   const surahData = JSON.parse(data);
-  
+
   // Load English translation if requested
   let translationData = null;
   if (includeTranslation) {
@@ -34,7 +35,7 @@ function loadSurahFile(surahNumber, includeTranslation = true) {
       translationData = JSON.parse(transData);
     }
   }
-  
+
   // Transform verse object to array with proper field names for frontend
   const verses = [];
   if (surahData.verse) {
@@ -48,7 +49,7 @@ function loadSurahFile(surahNumber, includeTranslation = true) {
         arabicText: surahData.verse[key], // Frontend expects 'arabicText'
         text: surahData.verse[key]
       };
-      
+
       // Add translation if available
       if (translationData && translationData.verse && translationData.verse[key]) {
         verse.translationEn = translationData.verse[key]; // Frontend expects 'translationEn'
@@ -56,7 +57,7 @@ function loadSurahFile(surahNumber, includeTranslation = true) {
           en: translationData.verse[key]
         };
       }
-      
+
       verses.push(verse);
     });
   }
@@ -82,7 +83,7 @@ function loadMetadata(type = 'surah') {
 exports.getAllSurahs = async (req, res) => {
   try {
     const metadata = loadMetadata('surah');
-    
+
     if (!metadata) {
       return res.status(500).json({
         success: false,
@@ -293,7 +294,7 @@ exports.getAyah = async (req, res) => {
 exports.getAllJuz = async (req, res) => {
   try {
     const surahMetadata = loadMetadata('surah');
-    
+
     if (!surahMetadata) {
       return res.status(500).json({
         success: false,
@@ -303,7 +304,7 @@ exports.getAllJuz = async (req, res) => {
 
     // Build juz list from surah metadata
     const juzMap = new Map();
-    
+
     surahMetadata.forEach((surah, idx) => {
       const surahNum = idx + 1;
       if (surah.juz && Array.isArray(surah.juz)) {
@@ -387,8 +388,8 @@ exports.getJuz = async (req, res) => {
           if (surahData) {
             const startVerse = parseInt(juzInSurah.verse.start.replace('verse_', ''));
             const endVerse = parseInt(juzInSurah.verse.end.replace('verse_', ''));
-            
-            const juzVerses = surahData.filter(v => 
+
+            const juzVerses = surahData.filter(v =>
               v.numberInSurah >= startVerse && v.numberInSurah <= endVerse
             );
             ayahs.push(...juzVerses);
@@ -430,29 +431,39 @@ exports.searchAyah = async (req, res) => {
 
     const searchTerm = q.toLowerCase();
     const results = [];
+    const FETCH_LIMIT = 40; // Fetch top 40
+    const DISPLAY_LIMIT = 15; // Show top 15 for better quality
 
     // Search through all surahs
     for (let surahNum = 1; surahNum <= 114; surahNum++) {
       const surahData = loadSurahFile(surahNum, true); // Include translation for search
       if (surahData) {
         for (const ayah of surahData) {
-          const textToSearch = lang === 'arabic' 
-            ? ayah.text 
+          const textToSearch = lang === 'arabic'
+            ? ayah.text
             : ayah.translation?.en || '';
-          
+
           if (textToSearch.toLowerCase().includes(searchTerm)) {
             results.push(ayah);
+            // Stop once we have enough for fetching
+            if (results.length >= FETCH_LIMIT) break;
           }
         }
       }
+      // Stop outer loop once we have enough
+      if (results.length >= FETCH_LIMIT) break;
     }
+
+    // Return only top 15 for display
+    const displayResults = results.slice(0, DISPLAY_LIMIT);
 
     res.status(200).json({
       success: true,
       query: q,
       lang,
-      count: results.length,
-      data: results
+      count: displayResults.length,
+      totalMatches: results.length,
+      data: displayResults
     });
   } catch (error) {
     console.error('Error searching ayahs:', error.message);
@@ -474,7 +485,7 @@ exports.getStats = async (req, res) => {
     let totalAyahs = 0;
     let makkiCount = 0;
     let madaniCount = 0;
-    
+
     if (surahMetadata) {
       totalAyahs = surahMetadata.reduce((sum, surah) => sum + (surah.count || 0), 0);
       makkiCount = surahMetadata.filter(s => s.type === 'Makkiyah').length;
@@ -496,6 +507,54 @@ exports.getStats = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to fetch statistics'
+    });
+  }
+};
+
+/**
+ * Semantic/AI Search using Local RAG
+ * GET /api/quran/semantic-search
+ */
+exports.semanticSearch = async (req, res) => {
+  try {
+    const { q, limit } = req.query;
+
+    if (!q || q.trim().length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Search query must be at least 2 characters long.'
+      });
+    }
+
+    const vectorEngine = getSearchEngine();
+
+    // Initialize if needed (first request might be slow)
+    if (!vectorEngine.initialized) {
+      console.log('Initializing vector engine on first request...');
+      await vectorEngine.initialize();
+    }
+
+    const searchResults = await vectorEngine.search(q, {
+      limit: parseInt(limit) || 15,
+      rerank: true
+    });
+
+    if (!searchResults.success) {
+      throw new Error(searchResults.error);
+    }
+
+    res.status(200).json({
+      success: true,
+      data: searchResults.results,
+      metadata: searchResults.metadata
+    });
+
+  } catch (error) {
+    console.error('Error in semantic search:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Semantic search failed',
+      error: error.message
     });
   }
 };

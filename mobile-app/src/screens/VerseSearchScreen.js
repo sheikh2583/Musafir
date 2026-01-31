@@ -30,9 +30,9 @@ export default function VerseSearchScreen({ route, navigation }) {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await searchVerses(query);
-      
+
       if (response.success) {
         setResults(response.results);
         setMetadata(response.metadata);
@@ -47,40 +47,65 @@ export default function VerseSearchScreen({ route, navigation }) {
     }
   };
 
-  const renderVerseItem = ({ item }) => (
-    <View style={styles.verseCard}>
-      {/* Verse Reference */}
-      <View style={styles.verseHeader}>
-        <Text style={styles.verseReference}>
-          {item.surahName || `Surah ${item.surah}`} • Ayah {item.ayah}
-        </Text>
-        <View style={styles.scoreBadge}>
-          <Text style={styles.scoreText}>
-            {Math.round((item.score || 0) * 100)}%
+  const VerseItem = ({ item }) => {
+    const [showTafseer, setShowTafseer] = useState(false);
+
+    return (
+      <View style={styles.verseCard}>
+        {/* Verse Reference */}
+        <View style={styles.verseHeader}>
+          <Text style={styles.verseReference}>
+            {item.surahName || `Surah ${item.surah}`} • Ayah {item.ayah}
           </Text>
+          <View style={styles.scoreBadge}>
+            <Text style={styles.scoreText}>
+              {Math.round((item.score || 0) * 100)}%
+            </Text>
+          </View>
         </View>
+
+        {/* Arabic Text */}
+        {item.arabic && <Text style={styles.arabicText}>{item.arabic}</Text>}
+
+        {/* English Translation */}
+        {item.english && <Text style={styles.englishText}>{item.english}</Text>}
+
+        {/* Tafseer Section (Collapsible) */}
+        {item.tafseer && (
+          <View style={styles.tafseerContainer}>
+            <TouchableOpacity
+              style={styles.tafseerToggle}
+              onPress={() => setShowTafseer(!showTafseer)}
+            >
+              <Text style={styles.tafseerToggleText}>
+                {showTafseer ? 'Hide Tafseer ▴' : 'Show Tafseer ▾'}
+              </Text>
+            </TouchableOpacity>
+
+            {showTafseer && (
+              <View style={styles.tafseerContent}>
+                <Text style={styles.tafseerTitle}>Tafseer Tazkirul Quran:</Text>
+                <Text style={styles.tafseerText}>{item.tafseer}</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* View in Context button */}
+        <TouchableOpacity
+          style={styles.contextButton}
+          onPress={() => navigation.navigate('Surah', {
+            surahNumber: item.surah,
+            highlightAyah: item.ayah
+          })}
+        >
+          <Text style={styles.contextButtonText}>
+            View in Context →
+          </Text>
+        </TouchableOpacity>
       </View>
-
-      {/* Arabic Text */}
-      {item.arabic && <Text style={styles.arabicText}>{item.arabic}</Text>}
-
-      {/* English Translation */}
-      {item.english && <Text style={styles.englishText}>{item.english}</Text>}
-
-      {/* View in Context button */}
-      <TouchableOpacity 
-        style={styles.contextButton}
-        onPress={() => navigation.navigate('Surah', {
-          surahNumber: item.surah,
-          highlightAyah: item.ayah
-        })}
-      >
-        <Text style={styles.contextButtonText}>
-          View in Context →
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
+    );
+  };
 
   if (loading) {
     return (
@@ -100,8 +125,8 @@ export default function VerseSearchScreen({ route, navigation }) {
         <TouchableOpacity style={styles.retryButton} onPress={performSearch}>
           <Text style={styles.retryButtonText}>Retry Search</Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={styles.backButton} 
+        <TouchableOpacity
+          style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
           <Text style={styles.backButtonText}>Go Back</Text>
@@ -114,7 +139,7 @@ export default function VerseSearchScreen({ route, navigation }) {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backIcon}
           onPress={() => navigation.goBack()}
         >
@@ -141,7 +166,7 @@ export default function VerseSearchScreen({ route, navigation }) {
       {/* Results List */}
       <FlatList
         data={results}
-        renderItem={renderVerseItem}
+        renderItem={({ item }) => <VerseItem item={item} />}
         keyExtractor={(item, index) => `${item.id}-${index}`}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
@@ -340,5 +365,38 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     color: '#999'
+  },
+  tafseerContainer: {
+    marginTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#EEE',
+    paddingTop: 10
+  },
+  tafseerToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5
+  },
+  tafseerToggleText: {
+    fontSize: 14,
+    color: '#2E7D32',
+    fontWeight: '600'
+  },
+  tafseerContent: {
+    marginTop: 10,
+    backgroundColor: '#FAFAFA',
+    padding: 10,
+    borderRadius: 8
+  },
+  tafseerTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#666',
+    marginBottom: 5
+  },
+  tafseerText: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#444'
   }
 });

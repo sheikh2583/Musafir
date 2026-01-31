@@ -35,7 +35,7 @@ export const getCollectionHadith = async (collection, page = 1, limit = 20, book
     if (bookNumber) {
       params.bookNumber = bookNumber;
     }
-    
+
     const response = await api.get(`/hadith/${collection}`, { params });
     return response.data;
   } catch (error) {
@@ -95,19 +95,31 @@ export const getHadithStats = async () => {
  * @param {object} options - Search options (limit, etc.)
  * @returns {Promise} Search results with hadiths
  */
+/**
+ * Search hadiths using semantic/NLP search
+ * Note: Currently disabled until Hadith embedding is implemented.
+ * @param {string} query - Natural language search query
+ * @param {object} options - Search options (limit, etc.)
+ * @returns {Promise} Search results with hadiths
+ */
 export const searchHadiths = async (query, options = {}) => {
-  try {
-    const params = {
-      q: query,
-      limit: options.limit || 30
-    };
-    
-    const response = await api.get('/hadith/search', { params });
-    return response.data;
-  } catch (error) {
-    console.error('Error searching hadiths:', error);
-    throw error;
-  }
+  console.log('Hadith semantic search not yet implemented');
+  return {
+    success: false,
+    error: 'Hadith semantic search coming soon',
+    results: [],
+    metadata: {
+      total: 0,
+      duration: 0,
+      model: 'local-rag-pending'
+    }
+  };
+};
+
+// Helper for collection name in case metadata fetch is needed inline
+const getCollectionName = (id) => {
+  const meta = getCollectionMetadata(id);
+  return meta ? meta.name : id;
 };
 
 /**
@@ -158,7 +170,7 @@ export const getCollectionMetadata = (collectionId) => {
       color: '#00695C'
     }
   };
-  
+
   return metadata[collectionId] || null;
 };
 

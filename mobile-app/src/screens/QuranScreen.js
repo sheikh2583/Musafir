@@ -27,6 +27,10 @@ const QuranScreen = ({ navigation }) => {
     try {
       setLoading(true);
       const data = await quranService.getSurahs();
+      console.log('Fetched Surahs count:', data.length);
+      if (data.length > 0) {
+        console.log('Sample Surah:', JSON.stringify(data[0], null, 2));
+      }
       setSurahs(data);
       setFilteredSurahs(data);
     } catch (error) {
@@ -62,7 +66,11 @@ const QuranScreen = ({ navigation }) => {
   const renderSurahItem = ({ item }) => (
     <TouchableOpacity
       style={styles.surahCard}
-      onPress={() => navigation.navigate('Surah', { surahNumber: item.number })}
+      onPress={() => navigation.navigate('Surah', {
+        surahNumber: item.number,
+        surahName: item.englishName,
+        surahNameArabic: item.arabicName
+      })}
     >
       <View style={styles.surahNumber}>
         <Text style={styles.surahNumberText}>{item.number}</Text>

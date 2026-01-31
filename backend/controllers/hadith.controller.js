@@ -303,6 +303,8 @@ exports.searchHadith = async (req, res) => {
 
     const searchTerm = q.toLowerCase();
     const results = [];
+    const FETCH_LIMIT = 40; // Fetch top 40
+    const DISPLAY_LIMIT = 15; // Show top 15 for better quality
     
     // Load hadith data from by_book structure
     const bookData = loadBookFile(collection);
@@ -329,16 +331,22 @@ exports.searchHadith = async (req, res) => {
               bookId: hadith.bookId
             }
           });
+          // Stop once we have enough for fetching
+          if (results.length >= FETCH_LIMIT) break;
         }
       }
     }
+
+    // Return only top 15 for display
+    const displayResults = results.slice(0, DISPLAY_LIMIT);
 
     res.status(200).json({
       success: true,
       collection,
       query: q,
-      count: results.length,
-      data: results
+      count: displayResults.length,
+      totalMatches: results.length,
+      data: displayResults
     });
   } catch (error) {
     console.error('Error searching hadith:', error.message);

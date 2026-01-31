@@ -7,28 +7,84 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   Platform,
-  I18nManager
+  useWindowDimensions
 } from 'react-native';
 import { getSurah } from '../services/quranService';
 
+// Helper to strip HTML tags
+const stripHtml = (html) => {
+  if (!html) return "";
+  return html.replace(/<[^>]*>?/gm, '');
+};
+
+const AyahItem = ({ item, showTranslation }) => {
+  const [showTafseer, setShowTafseer] = useState(false);
+
+  return (
+    <View style={styles.ayahCard}>
+      {/* Ayah Number Badge */}
+      <View style={styles.ayahHeader}>
+        <View style={styles.ayahNumberBadge}>
+          <Text style={styles.ayahNumberText}>{item.ayah}</Text>
+        </View>
+        <View style={{ flex: 1 }} />
+      </View>
+
+      {/* Arabic Text (RTL) */}
+      <View style={styles.arabicContainer}>
+        <Text style={styles.arabicText}>
+          {item.arabicText}
+        </Text>
+      </View>
+
+      {/* Translation */}
+      {showTranslation && (
+        <View style={styles.translationContainer}>
+          <Text style={styles.translationText}>{item.translationEn}</Text>
+        </View>
+      )}
+
+      {/* Inline Tafseer Action */}
+      {item.tafseer ? (
+        <View style={styles.actionContainer}>
+          <TouchableOpacity
+            style={styles.tafseerToggle}
+            onPress={() => setShowTafseer(!showTafseer)}
+          >
+            <Text style={styles.tafseerToggleText}>
+              {showTafseer ? 'Hide Tafseer ▴' : 'Show Tafseer ▾'}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Collapsible Tafseer Content */}
+          {showTafseer && (
+            <View style={styles.tafseerContent}>
+              <Text style={styles.tafseerTitle}>Tafseer Tazkirul Quran:</Text>
+              <Text style={styles.tafseerText}>
+                {stripHtml(item.tafseer)}
+              </Text>
+            </View>
+          )}
+        </View>
+      ) : (
+        <View style={styles.actionContainer}>
+          <Text style={styles.noTafseerText}>Tafseer not available</Text>
+        </View>
+      )}
+    </View>
+  );
+};
+
 /**
  * SurahScreen - Display all ayahs for a specific surah
- * 
- * Features:
- * - RTL Arabic text rendering
- * - Translation toggle (English/Bangla)
- * - Virtualized list for performance
- * - Offline-first
- * - Proper Arabic font sizing
  */
 export default function SurahScreen({ route, navigation }) {
   const { surahNumber, surahName, surahNameArabic } = route.params;
-  
-  const [ayahs, setAyahs] = useState([]);
+
+  const [data, setData] = useState({ bismillah: null, verses: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showTranslation, setShowTranslation] = useState(true);
-  const [translationLang, setTranslationLang] = useState('en'); // 'en' or 'bn'
 
   useEffect(() => {
     navigation.setOptions({
@@ -54,8 +110,9 @@ export default function SurahScreen({ route, navigation }) {
     try {
       setLoading(true);
       setError(null);
-      const ayahsData = await getSurah(surahNumber, true);
-      setAyahs(ayahsData);
+      // New getSurah returns { bismillah, verses: [...] }
+      const result = await getSurah(surahNumber);
+      setData(result);
     } catch (err) {
       console.error('Error loading surah:', err);
       setError('Failed to load surah. Please try again.');
@@ -67,72 +124,6 @@ export default function SurahScreen({ route, navigation }) {
   const toggleTranslation = useCallback(() => {
     setShowTranslation(prev => !prev);
   }, []);
-
-  const toggleTranslationLanguage = useCallback(() => {
-    setTranslationLang(prev => prev === 'en' ? 'bn' : 'en');
-  }, []);
-
-  const renderAyah = ({ item }) => {
-    const translation = translationLang === 'en' 
-      ? item.translationEn 
-      : item.translationBn;
-
-    return (
-      <View style={styles.ayahCard}>
-        {/* Ayah Number Badge */}
-        <View style={styles.ayahHeader}>
-          <View style={styles.ayahNumberBadge}>
-            <Text style={styles.ayahNumberText}>{item.ayah}</Text>
-          </View>
-          
-          {/* Metadata Icons */}
-          {item.metadata?.sajda && (
-            <View style={styles.sajdaBadge}>
-              <Text style={styles.sajdaText}>سجدة</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Arabic Text (RTL) */}
-        <View style={styles.arabicContainer}>
-          <Text style={styles.arabicText}>
-            {item.arabicText}
-          </Text>
-        </View>
-
-        {/* Translation */}
-        {showTranslation && translation && (
-          <View style={styles.translationContainer}>
-            <Text style={styles.translationText}>{translation}</Text>
-            
-            {/* Language Toggle for Translation */}
-            {item.translationBn && (
-              <TouchableOpacity
-                onPress={toggleTranslationLanguage}
-                style={styles.langToggle}
-              >
-                <Text style={styles.langToggleText}>
-                  {translationLang === 'en' ? 'বাংলা' : 'English'}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
-        {/* Metadata */}
-        {item.metadata && (
-          <View style={styles.metadataContainer}>
-            {item.metadata.juz && (
-              <Text style={styles.metadataText}>Juz {item.metadata.juz}</Text>
-            )}
-            {item.metadata.page && (
-              <Text style={styles.metadataText}> • Page {item.metadata.page}</Text>
-            )}
-          </View>
-        )}
-      </View>
-    );
-  };
 
   if (loading) {
     return (
@@ -156,34 +147,36 @@ export default function SurahScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Surah Header */}
-      <View style={styles.surahHeader}>
-        <Text style={styles.surahNameArabic}>{surahNameArabic}</Text>
-        <Text style={styles.surahInfo}>
-          {ayahs.length} Ayahs
-        </Text>
-      </View>
-
-      {/* Bismillah (except for Surah 9) */}
-      {surahNumber !== 9 && surahNumber !== 1 && (
-        <View style={styles.bismillahContainer}>
-          <Text style={styles.bismillahText}>
-            بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ
-          </Text>
-        </View>
-      )}
-
-      {/* Ayah List */}
+      {/* Surah Header + Bismillah handling in ListHeaderComponent */}
       <FlatList
-        data={ayahs}
-        renderItem={renderAyah}
-        keyExtractor={(item) => `${item.surah}-${item.ayah}`}
+        data={data.verses}
+        renderItem={({ item }) => <AyahItem item={item} showTranslation={showTranslation} />}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         initialNumToRender={10}
         maxToRenderPerBatch={5}
         windowSize={10}
         removeClippedSubviews={Platform.OS === 'android'}
+        ListHeaderComponent={
+          <View>
+            <View style={styles.surahHeader}>
+              <Text style={styles.surahNameArabicHeader}>{surahNameArabic}</Text>
+              <Text style={styles.surahInfo}>
+                {data.verses.length} Ayahs
+              </Text>
+            </View>
+
+            {/* Conditional Bismillah Display */}
+            {data.bismillah && (
+              <View style={styles.bismillahContainer}>
+                <Text style={styles.bismillahText}>
+                  {data.bismillah}
+                </Text>
+              </View>
+            )}
+          </View>
+        }
       />
     </View>
   );
@@ -204,10 +197,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#2E7D32',
     padding: 20,
     alignItems: 'center',
+    marginBottom: 10,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20
   },
-  surahNameArabic: {
+  surahNameArabicHeader: {
     fontSize: 32,
     fontWeight: 'bold',
     color: '#FFF',
@@ -219,8 +213,10 @@ const styles = StyleSheet.create({
   },
   bismillahContainer: {
     backgroundColor: '#FFF',
-    padding: 20,
-    margin: 15,
+    padding: 15,
+    marginHorizontal: 15,
+    marginTop: 5,
+    marginBottom: 15,
     borderRadius: 12,
     alignItems: 'center',
     shadowColor: '#000',
@@ -236,12 +232,13 @@ const styles = StyleSheet.create({
     textAlign: 'center'
   },
   listContent: {
-    padding: 15
+    paddingBottom: 20
   },
   ayahCard: {
     backgroundColor: '#FFF',
     borderRadius: 12,
     padding: 20,
+    marginHorizontal: 15,
     marginBottom: 15,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -255,37 +252,25 @@ const styles = StyleSheet.create({
     marginBottom: 15
   },
   ayahNumberBadge: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#E8F5E9',
     justifyContent: 'center',
     alignItems: 'center'
   },
   ayahNumberText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#2E7D32'
-  },
-  sajdaBadge: {
-    marginLeft: 10,
-    backgroundColor: '#FFF3E0',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 5
-  },
-  sajdaText: {
-    color: '#EF6C00',
-    fontSize: 14,
-    fontWeight: '600'
   },
   arabicContainer: {
     marginBottom: 15,
     paddingVertical: 10
   },
   arabicText: {
-    fontSize: 28,
-    lineHeight: 50,
+    fontSize: 26,
+    lineHeight: 48,
     color: '#1B5E20',
     textAlign: 'right',
     writingDirection: 'rtl',
@@ -294,37 +279,14 @@ const styles = StyleSheet.create({
   translationContainer: {
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
-    paddingTop: 15
+    paddingTop: 15,
+    marginBottom: 10
   },
   translationText: {
     fontSize: 16,
-    lineHeight: 26,
+    lineHeight: 24,
     color: '#424242',
     textAlign: 'left'
-  },
-  langToggle: {
-    alignSelf: 'flex-end',
-    marginTop: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#E8F5E9',
-    borderRadius: 5
-  },
-  langToggleText: {
-    color: '#2E7D32',
-    fontSize: 12,
-    fontWeight: '600'
-  },
-  metadataContainer: {
-    flexDirection: 'row',
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F5F5F5'
-  },
-  metadataText: {
-    fontSize: 12,
-    color: '#999'
   },
   headerButton: {
     marginRight: 15,
@@ -357,5 +319,44 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: '600'
+  },
+  // Inline Tafseer Styles (Matched to VerseSearchScreen)
+  actionContainer: {
+    borderTopWidth: 1,
+    borderTopColor: '#F5F5F5',
+    marginTop: 10,
+    paddingTop: 10
+  },
+  tafseerToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 5
+  },
+  tafseerToggleText: {
+    fontSize: 14,
+    color: '#2E7D32',
+    fontWeight: '600'
+  },
+  tafseerContent: {
+    marginTop: 10,
+    backgroundColor: '#FAFAFA',
+    padding: 10,
+    borderRadius: 8
+  },
+  tafseerTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#666',
+    marginBottom: 5
+  },
+  tafseerText: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#444'
+  },
+  noTafseerText: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    color: '#666',
   }
 });

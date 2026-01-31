@@ -24,6 +24,9 @@ router.get('/juz/:juzNumber', quranController.getJuz);
 // Basic text search (simple keyword matching)
 router.get('/basic-search', quranController.searchAyah);
 
+// Semantic/AI Search (Local RAG)
+router.get('/semantic-search', quranController.semanticSearch);
+
 // Get specific surah metadata
 router.get('/surah/:surahNumber/metadata', quranController.getSurahMetadata);
 

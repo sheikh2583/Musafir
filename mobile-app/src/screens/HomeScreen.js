@@ -142,7 +142,7 @@ export default function HomeScreen({ navigation }) {
     const now = new Date();
     const diffMs = now - date;
     const diffMins = Math.floor(diffMs / 60000);
-    
+
     if (diffMins < 1) return 'Just now';
     if (diffMins < 60) return `${diffMins}m ago`;
     const diffHours = Math.floor(diffMins / 60);
@@ -151,7 +151,7 @@ export default function HomeScreen({ navigation }) {
   };
 
   return (
-    <ScrollView 
+    <ScrollView
       style={styles.container}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -170,12 +170,12 @@ export default function HomeScreen({ navigation }) {
           onFocus={handleSearchFocus}
           autoCapitalize="none"
         />
-        
+
         {/* Search Results Dropdown */}
         {showSearchResults && searchResults.length > 0 && (
           <View style={styles.searchResultsDropdown} pointerEvents="box-none">
             {searchResults.map((resultUser) => (
-              <TouchableOpacity 
+              <TouchableOpacity
                 key={resultUser._id}
                 style={styles.searchResultItem}
                 activeOpacity={0.7}
@@ -198,7 +198,7 @@ export default function HomeScreen({ navigation }) {
             ))}
           </View>
         )}
-        
+
         {showSearchResults && searchResults.length === 0 && searchQuery.trim().length > 0 && (
           <View style={styles.searchResultsDropdown}>
             <Text style={styles.noSearchResults}>No users found</Text>
@@ -215,7 +215,7 @@ export default function HomeScreen({ navigation }) {
           multiline={true}
           maxLength={500}
         />
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.postButton, loading && styles.postButtonDisabled]}
           onPress={handlePostMessage}
           disabled={loading}
@@ -233,7 +233,7 @@ export default function HomeScreen({ navigation }) {
           messages.map((msg) => (
             <View key={msg._id} style={styles.messageCard}>
               <View style={styles.messageHeader}>
-                <TouchableOpacity 
+                <TouchableOpacity
                   onPress={() => {
                     if (msg.user?._id && msg.user._id !== userData?._id) {
                       navigation.navigate('UserProfile', { userId: msg.user._id });
@@ -251,10 +251,10 @@ export default function HomeScreen({ navigation }) {
                 <Text style={styles.messageTime}>{formatTime(msg.createdAt)}</Text>
               </View>
               <Text style={styles.messageContent}>{msg.content}</Text>
-              
+
               {/* Show delete button only for user's own messages */}
               {msg.user?._id === userData?._id && (
-                <TouchableOpacity 
+                <TouchableOpacity
                   style={styles.deleteButton}
                   onPress={() => handleDeleteMessage(msg._id)}
                 >

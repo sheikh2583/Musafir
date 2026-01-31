@@ -10,11 +10,23 @@ node_modules/
 # AI Model Files - Heavy models excluded from repo
 backend/all-mpnet-base-v2-onnx/
 backend/bge-base-en-v1.5/
+backend/bge-m3/
 backend/bge-reranker-base/
 backend/*.safetensors
 backend/*.bin
 backend/*.onnx
+backend/*.pt
+backend/vector_index.json
 ml-service/
+
+# Large data files
+*.json.gz
+tazkirul-quran-en.json/
+en-tafisr-ibn-kathir.json/
+mobile-app/tmp_quran_en.json
+mobile-app/src/data/quran_test.json
+mobile-app/src/data/quran_translation.json
+mobile-app/src/data/tafseer.json
 
 # IDE
 .vscode/

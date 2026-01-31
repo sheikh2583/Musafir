@@ -7,20 +7,25 @@ const { getSearchEngine } = require('./ml-search/search/vector-search');
 
 async function embedTafseer() {
   console.log('🚀 Starting Tafseer Embedding Process...\n');
-  console.log('📁 Source: en-tafisr-ibn-kathir.json');
+  console.log('📁 Source: tazkirul-quran-en.json');
   console.log('🎯 Target: ChromaDB with BGE embeddings\n');
-  
+
   try {
+    const fs = require('fs');
+    const path = require('path');
+
+    // Load Tazkirul Quran (absolute path)
+    const tafseerPath = path.resolve('d:/Musafir/tazkirul-quran-en.json/tazkirul-quran-en.json');
     // Get vector search engine
     const vectorEngine = getSearchEngine();
-    
+
     // Initialize (this loads tafseer, creates embeddings, and indexes)
     console.log('⏳ Initializing vector search engine...');
-    await vectorEngine.initialize();
-    
+    await vectorEngine.initialize('index');
+
     // Get info
     const info = await vectorEngine.getInfo();
-    
+
     console.log('\n✅ EMBEDDING COMPLETE!\n');
     console.log('📊 Results:');
     console.log(`   Total verses: ${info.verses}`);
@@ -30,7 +35,7 @@ async function embedTafseer() {
     console.log(`   Model: ${info.model}`);
     console.log(`   Method: ${info.method}`);
     console.log('\n🎉 Vector database is ready for RAG search!');
-    
+
     process.exit(0);
   } catch (error) {
     console.error('\n❌ ERROR:', error.message);

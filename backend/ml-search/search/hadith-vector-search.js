@@ -20,33 +20,37 @@ class VectorHadithSearch {
     this.hadithStats = {
       totalHadiths: 0,
       bukhari: 0,
-      muslim: 0
+      muslim: 0,
+      nasai: 0,
+      abudawud: 0,
+      tirmidhi: 0,
+      ibnmajah: 0
     };
   }
 
   async initialize() {
     console.log('[HadithRAG] 🚀 Initializing Complete RAG System...');
-    
+
     try {
       // Initialize embedding model
-      console.log('[HadithRAG] Loading BGE-base-en-v1.5 embedding model...');
-      this.embedder = await pipeline('feature-extraction', 'Xenova/bge-base-en-v1.5', {
+      console.log('[HadithRAG] Loading BGE-large-en-v1.5 embedding model...');
+      this.embedder = await pipeline('feature-extraction', 'Xenova/bge-large-en-v1.5', {
         quantized: false
       });
       console.log('[HadithRAG] ✅ Embedding model loaded');
-      
+
       // Initialize reranker model
       console.log('[HadithRAG] Loading BGE reranker model...');
       this.reranker = await pipeline('text-classification', 'Xenova/bge-reranker-base');
       console.log('[HadithRAG] ✅ Reranker model loaded');
-      
-      // Load hadiths from Bukhari and Muslim only
+
+      // Load hadiths from all 6 books
       await this._loadHadiths();
-      
+
       // Load or create vector index
       try {
         const indexExists = await fs.access(this.indexPath).then(() => true).catch(() => false);
-        
+
         if (indexExists) {
           console.log('[HadithRAG] Loading existing vector index...');
           const data = await fs.readFile(this.indexPath, 'utf-8');
@@ -60,12 +64,17 @@ class VectorHadithSearch {
         console.error('[HadithRAG] Error with vector index:', error.message);
         await this._indexHadiths();
       }
-      
+
       console.log('[HadithRAG] ✅ Complete RAG System Ready!');
       console.log(`[HadithRAG] 📊 Total hadiths: ${this.hadiths.length}`);
-      console.log(`[HadithRAG] 📚 Sahih Bukhari: ${this.hadithStats.bukhari}`);
-      console.log(`[HadithRAG] 📚 Sahih Muslim: ${this.hadithStats.muslim}`);
-      
+      console.log(`[HadithRAG] 📚 Breakdown:`);
+      console.log(`   - Bukhari: ${this.hadithStats.bukhari}`);
+      console.log(`   - Muslim: ${this.hadithStats.muslim}`);
+      console.log(`   - Nasai: ${this.hadithStats.nasai}`);
+      console.log(`   - Abu Dawud: ${this.hadithStats.abudawud}`);
+      console.log(`   - Tirmidhi: ${this.hadithStats.tirmidhi}`);
+      console.log(`   - Ibn Majah: ${this.hadithStats.ibnmajah}`);
+
       this.initialized = true;
     } catch (error) {
       console.error('[HadithRAG] Initialization error:', error);
@@ -74,29 +83,45 @@ class VectorHadithSearch {
   }
 
   async _loadHadiths() {
-    console.log('[HadithRAG] Loading hadiths from Sahih Bukhari and Sahih Muslim...');
-    
+    console.log('[HadithRAG] Loading hadiths from all 6 collections...');
+
     const hadithBasePath = path.join(__dirname, '../../../hadith-json/db/by_book/the_9_books');
-    const collections = ['bukhari', 'muslim']; // Load in order
-    
-    let bukhariCount = 0;
-    let muslimCount = 0;
+    // Order matters for consistency
+    const collections = ['bukhari', 'muslim', 'nasai', 'abudawud', 'tirmidhi', 'ibnmajah'];
+    const collectionNames = {
+      bukhari: 'Sahih Bukhari',
+      muslim: 'Sahih Muslim',
+      nasai: 'Sunan an-Nasa\'i',
+      abudawud: 'Sunan Abi Dawud',
+      tirmidhi: 'Jami` at-Tirmidhi',
+      ibnmajah: 'Sunan Ibn Majah'
+    };
+
+    let counts = {
+      bukhari: 0,
+      muslim: 0,
+      nasai: 0,
+      abudawud: 0,
+      tirmidhi: 0,
+      ibnmajah: 0
+    };
+
     let currentId = 1; // Unified sequential counter
-    
+
     for (const collection of collections) {
       const bookFilePath = path.join(hadithBasePath, `${collection}.json`);
-      
+
       try {
         const fileData = await fs.readFile(bookFilePath, 'utf-8');
         const bookData = JSON.parse(fileData);
-        
+
         if (bookData.hadiths && Array.isArray(bookData.hadiths)) {
           for (const hadith of bookData.hadiths) {
             const hadithObj = {
               id: currentId, // Unified sequential ID (1, 2, 3, ...)
               collection,
-              collectionName: collection === 'bukhari' ? 'Sahih Bukhari' : 'Sahih Muslim',
-              hadithNumber: currentId, // Same as id
+              collectionName: collectionNames[collection],
+              hadithNumber: currentId, // Use sequential ID as hadith number for now to avoid duplicates
               originalId: hadith.id, // Original ID from JSON
               chapterId: hadith.chapterId,
               bookId: hadith.bookId,
@@ -105,35 +130,37 @@ class VectorHadithSearch {
               text: hadith.english?.text || '',
               chapterTitle: ''
             };
-            
+
             if (hadithObj.text) {
               this.hadiths.push(hadithObj);
               this.hadithsMap.set(currentId, hadithObj);
               currentId++; // Increment for next hadith
-              
-              if (collection === 'bukhari') bukhariCount++;
-              else if (collection === 'muslim') muslimCount++;
+              counts[collection]++;
             }
           }
         }
-        
-        console.log(`[HadithRAG] ✅ Loaded ${collection}: ${collection === 'bukhari' ? bukhariCount : muslimCount} hadiths`);
+
+        console.log(`[HadithRAG] ✅ Loaded ${collectionNames[collection]}: ${counts[collection]} hadiths`);
       } catch (error) {
         console.error(`[HadithRAG] Error loading collection ${collection}:`, error.message);
       }
     }
-    
+
     this.hadithStats.totalHadiths = this.hadiths.length;
-    this.hadithStats.bukhari = bukhariCount;
-    this.hadithStats.muslim = muslimCount;
-    
-    console.log(`[HadithRAG] ✅ Total: ${this.hadiths.length} hadiths (Bukhari: 1-${bukhariCount}, Muslim: ${bukhariCount + 1}-${currentId - 1})`);
+    this.hadithStats.bukhari = counts.bukhari;
+    this.hadithStats.muslim = counts.muslim;
+    this.hadithStats.nasai = counts.nasai;
+    this.hadithStats.abudawud = counts.abudawud;
+    this.hadithStats.tirmidhi = counts.tirmidhi;
+    this.hadithStats.ibnmajah = counts.ibnmajah;
+
+    console.log(`[HadithRAG] ✅ Total: ${this.hadiths.length} hadiths loaded`);
   }
 
   async _indexHadiths() {
     console.log('[HadithRAG] 🚀 Starting complete hadith indexing...');
     console.log('[HadithRAG] This will take 5-10 minutes for first-time indexing');
-    
+
     // Debug: Show sample of what we're embedding
     if (this.hadiths.length > 0) {
       const sample = this.hadiths[0];
@@ -144,15 +171,15 @@ class VectorHadithSearch {
       console.log('  ID Range:', sample.id, '-', lastSample.id);
       console.log('  Text sample:', sample.text.substring(0, 100) + '...\n');
     }
-    
+
     this.vectorIndex = [];
     const batchSize = 32;
     let indexedCount = 0;
     const startTime = Date.now();
-    
+
     for (let i = 0; i < this.hadiths.length; i += batchSize) {
       const batch = this.hadiths.slice(i, i + batchSize);
-      
+
       // Create documents: narrator + text for semantic embedding
       const documents = batch.map(h => {
         const parts = [];
@@ -160,11 +187,11 @@ class VectorHadithSearch {
         if (h.text) parts.push(h.text);
         return parts.join(' ');
       });
-      
+
       try {
         // Generate embeddings
         const embeddings = await this._generateEmbeddings(documents);
-        
+
         // Add to local vector index
         for (let j = 0; j < batch.length; j++) {
           const hadith = batch[j];
@@ -181,23 +208,23 @@ class VectorHadithSearch {
             }
           });
         }
-        
+
         indexedCount += batch.length;
-        
+
         // Progress updates every 200 hadiths
         if (indexedCount % 200 === 0 || indexedCount === this.hadiths.length) {
           const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
           const rate = (indexedCount / elapsed).toFixed(1);
           const remaining = ((this.hadiths.length - indexedCount) / rate).toFixed(0);
-          
-          console.log(`[HadithRAG] 📊 Progress: ${indexedCount}/${this.hadiths.length} hadiths (${((indexedCount/this.hadiths.length)*100).toFixed(1)}%)`);
+
+          console.log(`[HadithRAG] 📊 Progress: ${indexedCount}/${this.hadiths.length} hadiths (${((indexedCount / this.hadiths.length) * 100).toFixed(1)}%)`);
           console.log(`[HadithRAG] ⏱️  Rate: ${rate} hadiths/sec | ETA: ${remaining}s`);
         }
       } catch (error) {
         console.error(`[HadithRAG] ❌ Indexing error at batch ${i}:`, error.message);
       }
     }
-    
+
     // Save index to file
     try {
       console.log('[HadithRAG] 💾 Saving vector index to disk...');
@@ -206,7 +233,7 @@ class VectorHadithSearch {
     } catch (error) {
       console.error('[HadithRAG] ⚠️ Failed to save vector index:', error.message);
     }
-    
+
     const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log(`[HadithRAG] ✅ Indexing complete in ${totalTime}s`);
     console.log(`[HadithRAG] 📦 Indexed ${indexedCount} hadiths`);
@@ -214,17 +241,19 @@ class VectorHadithSearch {
 
   async _generateEmbeddings(texts) {
     const embeddings = [];
-    
+
     for (const text of texts) {
       try {
         const output = await this.embedder(text, { pooling: 'mean', normalize: true });
-        embeddings.push(Array.from(output.data));
+        // BGE-M3 returns dense embeddings
+        const embedding = Array.from(output.data || output);
+        embeddings.push(embedding);
       } catch (error) {
         console.error('[HadithRAG] Embedding error:', error.message);
-        embeddings.push(new Array(768).fill(0));
+        embeddings.push(new Array(1024).fill(0));
       }
     }
-    
+
     return embeddings;
   }
 
@@ -237,37 +266,37 @@ class VectorHadithSearch {
     try {
       const limit = options.limit || 7;
       const useReranker = options.rerank !== false;
-      
+
       // Step 1: Generate query embedding
       const embeddingStart = Date.now();
       const queryEmbedding = await this._generateEmbeddings([query]);
       const embeddingTime = Date.now() - embeddingStart;
       console.log(`[HadithRAG] ⚡ Query embedded in ${embeddingTime}ms`);
-      
+
       // Step 2: Calculate cosine similarity
       const retrievalStart = Date.now();
       const candidateLimit = useReranker ? limit * 3 : limit;
-      
+
       const similarities = this.vectorIndex.map(item => ({
         ...item,
         similarity: this._cosineSimilarity(queryEmbedding[0], item.embedding)
       }));
-      
+
       similarities.sort((a, b) => b.similarity - a.similarity);
       const topCandidates = similarities.slice(0, candidateLimit);
-      
+
       const retrievalTime = Date.now() - retrievalStart;
       console.log(`[HadithRAG] 📚 Retrieved ${topCandidates.length} candidates in ${retrievalTime}ms`);
-      
+
       // Step 3: Process initial results
       let hadiths = topCandidates.map((item, index) => {
         const hadith = this.hadithsMap.get(item.id);
-        
+
         if (!hadith) {
           console.error(`[HadithRAG] ❌ Hadith not found in map: ${item.id}`);
           return null;
         }
-        
+
         // Debug log for first result
         if (index === 0) {
           console.log(`[HadithRAG] 📋 First result data:`, {
@@ -279,7 +308,7 @@ class VectorHadithSearch {
             textLength: hadith.text?.length || 0
           });
         }
-        
+
         return {
           id: hadith.id,
           collection: hadith.collection,
@@ -299,21 +328,21 @@ class VectorHadithSearch {
           initialScore: item.similarity
         };
       }).filter(h => h !== null);
-      
+
       // Step 4: Rerank if enabled
       if (useReranker && this.reranker && hadiths.length > limit) {
         const rerankStart = Date.now();
         console.log(`[HadithRAG] 🎯 Reranking ${hadiths.length} candidates...`);
-        
+
         hadiths = await this._rerankResults(query, hadiths);
         hadiths = hadiths.slice(0, limit);
-        
+
         const rerankTime = Date.now() - rerankStart;
         console.log(`[HadithRAG] ✨ Reranked to top ${limit} in ${rerankTime}ms`);
       } else {
         hadiths = hadiths.slice(0, limit);
       }
-      
+
       // Step 5: Calculate final scores
       hadiths = hadiths.map((h, idx) => ({
         ...h,
@@ -321,7 +350,7 @@ class VectorHadithSearch {
         relevance: Math.round((h.rerankScore || h.initialScore) * 100),
         rank: idx + 1
       }));
-      
+
       const duration = Date.now() - startTime;
       console.log(`[HadithRAG] ✅ ${hadiths.length} hadiths retrieved in ${duration}ms`);
       console.log(`[HadithRAG] 🏆 Top result: ${hadiths[0]?.id} (${hadiths[0]?.relevance}% relevant)`);
@@ -362,13 +391,13 @@ class VectorHadithSearch {
           : h.text.substring(0, 500);
         return [query, context];
       });
-      
+
       const batchSize = 16;
       const scores = [];
-      
+
       for (let i = 0; i < pairs.length; i += batchSize) {
         const batch = pairs.slice(i, i + batchSize);
-        
+
         for (const pair of batch) {
           try {
             const result = await this.reranker(pair[0], pair[1]);
@@ -380,11 +409,11 @@ class VectorHadithSearch {
           }
         }
       }
-      
+
       hadiths.forEach((h, i) => {
         h.rerankScore = scores[i];
       });
-      
+
       hadiths.sort((a, b) => b.rerankScore - a.rerankScore);
       return hadiths;
     } catch (error) {
@@ -397,13 +426,13 @@ class VectorHadithSearch {
     let dotProduct = 0;
     let normA = 0;
     let normB = 0;
-    
+
     for (let i = 0; i < vecA.length; i++) {
       dotProduct += vecA[i] * vecB[i];
       normA += vecA[i] * vecA[i];
       normB += vecB[i] * vecB[i];
     }
-    
+
     return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
   }
 
@@ -416,13 +445,13 @@ class VectorHadithSearch {
       initialized: this.initialized,
       totalHadiths: this.hadiths.length,
       stats: this.hadithStats,
-      collections: ['bukhari', 'muslim'],
-      embeddingModel: 'bge-base-en-v1.5',
+      collections: ['bukhari', 'muslim', 'nasai', 'abudawud', 'tirmidhi', 'ibnmajah'],
+      embeddingModel: 'bge-large-en-v1.5',
       rerankerModel: 'bge-reranker-base',
-      vectorDimension: 768,
+      vectorDimension: 1024,
       features: [
         'Hadith text embedding (narrator + text)',
-        'BGE embeddings for semantic search',
+        'BGE-M3 multilingual embeddings for semantic search',
         'Local vector storage with cosine similarity',
         'BGE reranker for result refinement',
         'Complete RAG pipeline'
