@@ -9,6 +9,9 @@ const hadithController = require('../controllers/hadith.controller');
  * No external API or database dependencies.
  */
 
+// Get random hadith - MUST be before /:collection routes
+router.get('/random', hadithController.getRandomHadith);
+
 // Get statistics - MUST be before /:collection routes
 router.get('/stats', hadithController.getStats);
 router.get('/stats/all', hadithController.getStats); // Alias for mobile app compatibility

@@ -13,12 +13,14 @@ import ProfileScreen from '../screens/ProfileScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import QuranScreen from '../screens/QuranScreen';
 import SurahScreen from '../screens/SurahScreen';
+import SurahQuizScreen from '../screens/SurahQuizScreen';
 import VerseSearchScreen from '../screens/VerseSearchScreen';
 import HadithScreen from '../screens/HadithScreen';
 import HadithCollectionScreen from '../screens/HadithCollectionScreen';
 import HadithSearchResultsScreen from '../screens/HadithSearchResultsScreen';
 import ArabicWritingScreen from '../screens/ArabicWritingScreen';
 import QuranQuizScreen from '../screens/QuranQuizScreen';
+import SalatLeaderboardScreen from '../screens/SalatLeaderboardScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -46,6 +48,11 @@ function HomeStack() {
         component={UserProfileScreen}
         options={{ title: 'User Profile' }}
       />
+      <Stack.Screen
+        name="SalatLeaderboard"
+        component={SalatLeaderboardScreen}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }
@@ -66,6 +73,16 @@ function QuranStack() {
           headerTintColor: '#FFF',
           headerTitleStyle: { fontWeight: 'bold' }
         }}
+      />
+      <Stack.Screen
+        name="SurahQuiz"
+        component={SurahQuizScreen}
+        options={({ route }) => ({
+          title: `${route.params.surahName} Quiz`,
+          headerStyle: { backgroundColor: '#2E7D32' },
+          headerTintColor: '#FFF',
+          headerTitleStyle: { fontWeight: 'bold' }
+        })}
       />
       <Stack.Screen
         name="VerseSearch"

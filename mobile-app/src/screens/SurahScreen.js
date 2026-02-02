@@ -90,17 +90,29 @@ export default function SurahScreen({ route, navigation }) {
     navigation.setOptions({
       title: surahName,
       headerRight: () => (
-        <TouchableOpacity
-          onPress={toggleTranslation}
-          style={styles.headerButton}
-        >
-          <Text style={styles.headerButtonText}>
-            {showTranslation ? 'Hide Translation' : 'Show Translation'}
-          </Text>
-        </TouchableOpacity>
+        <View style={styles.headerRightContainer}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('SurahQuiz', {
+              surahNumber,
+              surahName,
+              surahNameArabic
+            })}
+            style={styles.headerButton}
+          >
+            <Text style={styles.headerButtonText}>Quiz</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={toggleTranslation}
+            style={styles.headerButton}
+          >
+            <Text style={styles.headerButtonText}>
+              {showTranslation ? 'Hide' : 'Show'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       )
     });
-  }, [showTranslation]);
+  }, [showTranslation, surahNumber, surahName, surahNameArabic]);
 
   useEffect(() => {
     loadSurah();
@@ -288,13 +300,21 @@ const styles = StyleSheet.create({
     color: '#424242',
     textAlign: 'left'
   },
+  headerRightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   headerButton: {
-    marginRight: 15,
-    padding: 5
+    marginRight: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 6,
   },
   headerButtonText: {
     color: '#FFF',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600'
   },
   loadingText: {

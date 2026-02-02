@@ -14,9 +14,12 @@ const generateToken = (id) => {
 // @access  Public
 exports.register = async (req, res) => {
   try {
+    console.log('📝 Register attempt:', { name: req.body.name, email: req.body.email });
+    
     // Validate request
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
@@ -25,6 +28,7 @@ exports.register = async (req, res) => {
     // Check if user exists
     const userExists = await User.findOne({ email });
     if (userExists) {
+      console.log('❌ User already exists:', email);
       return res.status(400).json({ message: 'User already exists' });
     }
 
@@ -36,6 +40,8 @@ exports.register = async (req, res) => {
       phoneNumber,
     });
 
+    console.log('✅ User created:', email);
+
     res.status(201).json({
       _id: user._id,
       name: user.name,
@@ -45,7 +51,7 @@ exports.register = async (req, res) => {
       token: generateToken(user._id),
     });
   } catch (error) {
-    console.error(error);
+    console.error('❌ Register error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
@@ -55,9 +61,12 @@ exports.register = async (req, res) => {
 // @access  Public
 exports.login = async (req, res) => {
   try {
+    console.log('🔐 Login attempt:', { email: req.body.email });
+    
     // Validate request
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
@@ -66,14 +75,20 @@ exports.login = async (req, res) => {
     // Check for user
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
+      console.log('❌ User not found:', email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
+
+    console.log('✅ User found:', user.email);
 
     // Check password
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
+      console.log('❌ Password mismatch for:', email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
+
+    console.log('✅ Login successful:', email);
 
     res.json({
       _id: user._id,
@@ -84,7 +99,7 @@ exports.login = async (req, res) => {
       token: generateToken(user._id),
     });
   } catch (error) {
-    console.error(error);
+    console.error('❌ Login error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

@@ -589,3 +589,81 @@ exports.getStats = async (req, res) => {
     });
   }
 };
+
+/**
+ * Get random hadith
+ * GET /api/hadith/random
+ * Optional query param: topic (prayer, fasting, charity, patience, etc.)
+ */
+exports.getRandomHadith = async (req, res) => {
+  try {
+    const { topic } = req.query;
+    
+    // Topic keywords for filtering
+    const topicKeywords = {
+      prayer: ['prayer', 'salah', 'salat', 'pray', 'worship', 'prostration', 'mosque'],
+      fasting: ['fast', 'fasting', 'ramadan', 'suhur', 'iftar'],
+      charity: ['charity', 'sadaqah', 'zakat', 'give', 'poor', 'needy'],
+      patience: ['patience', 'patient', 'perseverance', 'steadfast', 'endure'],
+      knowledge: ['knowledge', 'learn', 'teach', 'scholar', 'wisdom'],
+      kindness: ['kind', 'gentle', 'mercy', 'merciful', 'compassion'],
+      parents: ['parent', 'mother', 'father', 'family'],
+      general: [] // No filter for general
+    };
+
+    const collections = ['bukhari', 'muslim']; // Use authenticated collections
+    const allHadiths = [];
+
+    for (const collection of collections) {
+      const bookData = loadBookFile(collection);
+      if (bookData && bookData.hadiths) {
+        for (const hadith of bookData.hadiths) {
+          const englishText = hadith.english?.text || '';
+          
+          // Skip very short hadiths
+          if (englishText.length < 100) continue;
+          
+          // If topic specified, filter by keywords
+          if (topic && topicKeywords[topic] && topicKeywords[topic].length > 0) {
+            const lowerText = englishText.toLowerCase();
+            const matches = topicKeywords[topic].some(kw => lowerText.includes(kw));
+            if (!matches) continue;
+          }
+
+          allHadiths.push({
+            id: hadith.id,
+            collection: collection,
+            collectionName: COLLECTIONS_META[collection].name,
+            hadithNumber: hadith.id,
+            arabicText: hadith.arabic,
+            translationEn: englishText,
+            narrator: hadith.english?.narrator || '',
+            reference: `${COLLECTIONS_META[collection].name} ${hadith.id}`
+          });
+        }
+      }
+    }
+
+    if (allHadiths.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No hadiths found for the specified criteria'
+      });
+    }
+
+    // Pick a random hadith
+    const randomIndex = Math.floor(Math.random() * allHadiths.length);
+    const randomHadith = allHadiths[randomIndex];
+
+    res.status(200).json({
+      success: true,
+      data: randomHadith
+    });
+  } catch (error) {
+    console.error('Error fetching random hadith:', error.message);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch random hadith'
+    });
+  }
+};

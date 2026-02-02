@@ -1,17 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, ScrollView, RefreshControl } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import SalatService from '../services/SalatService';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const [deleting, setDeleting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [userData, setUserData] = useState(user);
+  const [salatStreak, setSalatStreak] = useState(0);
+  const [todayStats, setTodayStats] = useState({ completed: 0, total: 5, percentage: 0 });
 
   useEffect(() => {
     setUserData(user);
+    loadSalatData();
   }, [user]);
+
+  const loadSalatData = async () => {
+    const streak = await SalatService.getStreak();
+    setSalatStreak(streak);
+    
+    const stats = await SalatService.getTodayStats();
+    setTodayStats(stats);
+  };
 
   const fetchUserData = async () => {
     try {
@@ -25,6 +38,7 @@ export default function ProfileScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     await fetchUserData();
+    await loadSalatData();
     setRefreshing(false);
   };
 
@@ -72,6 +86,43 @@ export default function ProfileScreen() {
           <Text style={styles.avatar}>{userData?.name?.[0]?.toUpperCase() || 'U'}</Text>
           <Text style={styles.name}>{userData?.name || 'User'}</Text>
           <Text style={styles.email}>{userData?.email || ''}</Text>
+        </View>
+
+        {/* Salat Streak Card */}
+        <View style={styles.streakCard}>
+          <View style={styles.streakHeader}>
+            <Ionicons name="flame" size={28} color="#FF5722" />
+            <Text style={styles.streakTitle}>Salat Streak</Text>
+          </View>
+          
+          <View style={styles.streakContent}>
+            <View style={styles.streakMain}>
+              <Text style={styles.streakNumber}>{salatStreak}</Text>
+              <Text style={styles.streakLabel}>{salatStreak === 1 ? 'Day' : 'Days'}</Text>
+            </View>
+            
+            <View style={styles.streakDivider} />
+            
+            <View style={styles.todayStats}>
+              <Text style={styles.todayTitle}>Today</Text>
+              <View style={styles.progressContainer}>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { width: `${todayStats.percentage}%` }]} />
+                </View>
+                <Text style={styles.progressText}>{todayStats.completed}/5</Text>
+              </View>
+            </View>
+          </View>
+          
+          <Text style={styles.streakTip}>
+            {salatStreak === 0 
+              ? '🌟 Complete all 5 prayers today to start your streak!'
+              : salatStreak < 7 
+                ? '💪 Keep going! Consistency builds strong habits.'
+                : salatStreak < 30
+                  ? '🔥 Amazing progress! You\'re on fire!'
+                  : '🏆 MashaAllah! You\'re a true champion!'}
+          </Text>
         </View>
       </ScrollView>
 
@@ -135,6 +186,88 @@ const styles = StyleSheet.create({
   email: {
     fontSize: 16,
     color: '#666',
+  },
+  streakCard: {
+    backgroundColor: '#FFF8E1',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 30,
+    borderWidth: 1,
+    borderColor: '#FFE082',
+  },
+  streakHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  streakTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginLeft: 8,
+  },
+  streakContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    marginBottom: 15,
+  },
+  streakMain: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  streakNumber: {
+    fontSize: 48,
+    fontWeight: 'bold',
+    color: '#FF5722',
+  },
+  streakLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: -5,
+  },
+  streakDivider: {
+    width: 1,
+    height: 60,
+    backgroundColor: '#FFE082',
+    marginHorizontal: 15,
+  },
+  todayStats: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  todayTitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  progressContainer: {
+    width: '100%',
+    alignItems: 'center',
+  },
+  progressBar: {
+    width: '100%',
+    height: 8,
+    backgroundColor: '#FFE082',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#4CAF50',
+    borderRadius: 4,
+  },
+  progressText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginTop: 5,
+  },
+  streakTip: {
+    fontSize: 13,
+    color: '#666',
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   bottomContainer: {
     padding: 20,

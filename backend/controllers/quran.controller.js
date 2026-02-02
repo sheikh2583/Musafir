@@ -1,6 +1,13 @@
 const fs = require('fs');
 const path = require('path');
-const { getSearchEngine } = require('../ml-search/search/vector-search');
+
+// Optional ML search - gracefully handle if not available
+let getSearchEngine = null;
+try {
+  getSearchEngine = require('../ml-search/search/vector-search').getSearchEngine;
+} catch (err) {
+  console.log('⚠️ ML search not available (missing dependencies). Using basic search.');
+}
 
 /**
  * Quran Controller
@@ -14,6 +21,61 @@ const { getSearchEngine } = require('../ml-search/search/vector-search');
 const QURAN_BASE_PATH = path.join(__dirname, '../../quran');
 const SURAH_METADATA_PATH = path.join(QURAN_BASE_PATH, 'surah.json');
 const JUZ_METADATA_PATH = path.join(QURAN_BASE_PATH, 'juz.json');
+const QUIZ_BASE_PATH = path.join(QURAN_BASE_PATH, 'quiz');
+
+/**
+ * Helper: Load quiz data for a surah
+ */
+function loadQuizData(surahNumber) {
+  const quizFilePath = path.join(QUIZ_BASE_PATH, `quiz_${surahNumber}.json`);
+  if (!fs.existsSync(quizFilePath)) {
+    return null;
+  }
+  
+  try {
+    const data = fs.readFileSync(quizFilePath, 'utf8');
+    const quizData = JSON.parse(data);
+    
+    // Filter vocabulary to only complete translations
+    const words = (quizData.vocabularyQuiz || [])
+      .filter(item => item.translationStatus === 'complete')
+      .map(item => ({
+        id: item.id,
+        arabicWord: item.arabicWord,
+        transliteration: item.transliteration,
+        correctMeaning: item.correctMeaning,
+        distractors: item.distractors,
+        ayahReference: item.ayahReference,
+        category: item.category,
+        difficulty: item.difficulty
+      }));
+    
+    // Transform tafsir questions
+    const tafsirQuestions = (quizData.tafsirQuiz || []).map(item => ({
+      id: item.id,
+      question: item.question,
+      correctAnswer: item.correctAnswer,
+      distractors: item.distractors,
+      ayahNumber: item.ayahNumber,
+      ayahKey: item.ayahKey,
+      questionType: item.questionType,
+      difficulty: item.difficulty,
+      coveredAyahs: item.coveredAyahs
+    }));
+    
+    return {
+      words,
+      tafsirQuestions,
+      stats: {
+        totalWords: words.length,
+        totalTafsirQuestions: tafsirQuestions.length
+      }
+    };
+  } catch (error) {
+    console.error(`Error loading quiz for surah ${surahNumber}:`, error.message);
+    return null;
+  }
+}
 
 /**
  * Helper: Load surah JSON file and transform to array format
@@ -79,9 +141,14 @@ function loadMetadata(type = 'surah') {
 /**
  * Get all surah metadata
  * GET /api/quran/surahs
+ * Query params:
+ *   - includeQuizStats: boolean (default: false) - Include quiz availability info
  */
 exports.getAllSurahs = async (req, res) => {
   try {
+    const { includeQuizStats } = req.query;
+    const includeQuizStatsBool = includeQuizStats === 'true';
+    
     const metadata = loadMetadata('surah');
 
     if (!metadata) {
@@ -92,18 +159,49 @@ exports.getAllSurahs = async (req, res) => {
     }
 
     // Transform to expected format
-    const transformed = metadata.map((surah, idx) => ({
-      number: idx + 1,
-      surahNumber: idx + 1,
-      name: surah.title,
-      nameArabic: surah.titleAr,
-      arabicName: surah.titleAr,
-      englishName: surah.title,
-      englishNameTranslation: surah.title,
-      revelationType: surah.type,
-      numberOfAyahs: surah.count,
-      verses: surah.count
-    }));
+    const transformed = metadata.map((surah, idx) => {
+      const surahNum = idx + 1;
+      const result = {
+        number: surahNum,
+        surahNumber: surahNum,
+        name: surah.title,
+        nameArabic: surah.titleAr,
+        arabicName: surah.titleAr,
+        englishName: surah.title,
+        englishNameTranslation: surah.title,
+        revelationType: surah.type,
+        numberOfAyahs: surah.count,
+        verses: surah.count
+      };
+      
+      // Add quiz stats if requested
+      if (includeQuizStatsBool) {
+        const quizFilePath = path.join(QUIZ_BASE_PATH, `quiz_${surahNum}.json`);
+        if (fs.existsSync(quizFilePath)) {
+          try {
+            const quizData = JSON.parse(fs.readFileSync(quizFilePath, 'utf8'));
+            const vocabCount = (quizData.vocabularyQuiz || [])
+              .filter(item => item.translationStatus === 'complete').length;
+            const tafsirCount = (quizData.tafsirQuiz || []).length;
+            
+            result.quizAvailable = true;
+            result.quizStats = {
+              words: vocabCount,
+              tafsirQuestions: tafsirCount,
+              total: vocabCount + tafsirCount
+            };
+          } catch {
+            result.quizAvailable = false;
+            result.quizStats = null;
+          }
+        } else {
+          result.quizAvailable = false;
+          result.quizStats = null;
+        }
+      }
+      
+      return result;
+    });
 
     res.status(200).json({
       success: true,
@@ -180,13 +278,17 @@ exports.getSurahMetadata = async (req, res) => {
 /**
  * Get all ayahs for a specific surah
  * GET /api/quran/surah/:surahNumber
+ * Query params:
+ *   - includeTranslation: boolean (default: true)
+ *   - includeQuiz: boolean (default: false) - Include quiz.words and quiz.tafsirQuestions
  */
 exports.getSurah = async (req, res) => {
   try {
     const { surahNumber } = req.params;
-    const { includeTranslation } = req.query;
+    const { includeTranslation, includeQuiz } = req.query;
     const surahNum = parseInt(surahNumber);
     const includeTranslationBool = includeTranslation !== 'false'; // Default to true
+    const includeQuizBool = includeQuiz === 'true'; // Default to false
 
     if (isNaN(surahNum) || surahNum < 1 || surahNum > 114) {
       return res.status(400).json({
@@ -216,13 +318,26 @@ exports.getSurah = async (req, res) => {
       numberOfAyahs: metadata.count
     } : null;
 
-    res.status(200).json({
+    // Build response
+    const response = {
       success: true,
       surahNumber: surahNum,
       metadata: transformedMetadata,
       ayahCount: surahData.length,
       data: surahData
-    });
+    };
+
+    // Include quiz data if requested
+    if (includeQuizBool) {
+      const quizData = loadQuizData(surahNum);
+      response.quiz = quizData || {
+        words: [],
+        tafsirQuestions: [],
+        stats: { totalWords: 0, totalTafsirQuestions: 0 }
+      };
+    }
+
+    res.status(200).json(response);
   } catch (error) {
     console.error('Error fetching surah:', error.message);
     res.status(500).json({

@@ -1,8 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, RefreshControl, Alert } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
+import SalatService from '../services/SalatService';
+import IslamicCalendarService from '../services/IslamicCalendarService';
 
 export default function HomeScreen({ navigation }) {
   const { user } = useAuth();
@@ -15,19 +18,77 @@ export default function HomeScreen({ navigation }) {
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
+  
+  // Salat state
+  const [hijriDate, setHijriDate] = useState(null);
+  const [todayPrayers, setTodayPrayers] = useState([]);
+  const [salatStats, setSalatStats] = useState({ completed: 0, total: 5 });
+  
+  // Islamic calendar state
+  const [upcomingEvents, setUpcomingEvents] = useState([]);
+  const [dailyQuote, setDailyQuote] = useState(null);
+  const [todayEvent, setTodayEvent] = useState(null);
+  const [calendarLoading, setCalendarLoading] = useState(true);
 
   useEffect(() => {
     fetchMessages();
     fetchUserData();
+    loadSalatData();
+    loadIslamicCalendar();
   }, []);
 
-  // Refresh messages when screen comes into focus (after returning from UserProfile)
   useFocusEffect(
     React.useCallback(() => {
       fetchMessages();
       fetchUserData();
+      loadSalatData();
     }, [])
   );
+
+  const loadSalatData = async () => {
+    const hijri = SalatService.getHijriDate();
+    setHijriDate(hijri);
+    
+    const prayers = await SalatService.getTodayPrayers();
+    setTodayPrayers(prayers);
+    
+    const stats = await SalatService.getTodayStats();
+    setSalatStats(stats);
+  };
+
+  const loadIslamicCalendar = async () => {
+    setCalendarLoading(true);
+    try {
+      // Get Hijri date (online)
+      const hijri = await IslamicCalendarService.getHijriDateOnline();
+      setHijriDate(hijri);
+      
+      // Get upcoming events
+      const events = await IslamicCalendarService.getUpcomingEvents(3);
+      setUpcomingEvents(events);
+      
+      // Check if today is special
+      const today = await IslamicCalendarService.getTodayEvent();
+      setTodayEvent(today);
+      
+      // Get daily quote
+      const quote = IslamicCalendarService.getDailyQuote();
+      setDailyQuote(quote);
+    } catch (error) {
+      console.log('Error loading Islamic calendar:', error.message);
+    } finally {
+      setCalendarLoading(false);
+    }
+  };
+
+  const handlePrayerToggle = async (prayerKey, currentlyCompleted) => {
+    if (currentlyCompleted) {
+      await SalatService.unmarkPrayer(prayerKey);
+    } else {
+      await SalatService.markPrayerComplete(prayerKey);
+    }
+    await loadSalatData();
+  };
 
   useEffect(() => {
     setUserData(user);
@@ -127,7 +188,7 @@ export default function HomeScreen({ navigation }) {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchMessages(), fetchUserData()]);
+    await Promise.all([fetchMessages(), fetchUserData(), loadSalatData(), loadIslamicCalendar()]);
     setRefreshing(false);
   };
 
@@ -157,8 +218,147 @@ export default function HomeScreen({ navigation }) {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
+      {/* Hijri Date Header */}
+      {hijriDate && (
+        <View style={styles.hijriContainer}>
+          <Text style={styles.hijriDateAr}>{hijriDate.formattedAr}</Text>
+          <Text style={styles.hijriDate}>{hijriDate.formatted}</Text>
+          {hijriDate.dayNameAr && (
+            <Text style={styles.hijriDay}>{hijriDate.dayName}</Text>
+          )}
+        </View>
+      )}
+
       <Text style={styles.title}>As-salamu alaykum</Text>
       <Text style={styles.subtitle}>Welcome, {userData?.name}</Text>
+
+      {/* Today's Special Event Banner */}
+      {todayEvent && (
+        <View style={[styles.todayEventBanner, { backgroundColor: IslamicCalendarService.getEventColor(todayEvent.type) }]}>
+          <Text style={styles.todayEventEmoji}>{todayEvent.emoji}</Text>
+          <View style={styles.todayEventInfo}>
+            <Text style={styles.todayEventTitle}>Today: {todayEvent.name}</Text>
+            <Text style={styles.todayEventNameAr}>{todayEvent.nameAr}</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Daily Quran Quote Card */}
+      {dailyQuote && (
+        <View style={styles.quoteCard}>
+          <View style={styles.quoteHeader}>
+            <Ionicons name="book-outline" size={18} color="#2c5f2d" />
+            <Text style={styles.quoteLabel}>Verse of the Day</Text>
+          </View>
+          <Text style={styles.quoteText}>"{dailyQuote.text}"</Text>
+          <Text style={styles.quoteRef}>— {dailyQuote.ref}</Text>
+        </View>
+      )}
+
+      {/* Salat Tracking Card */}
+      <View style={styles.salatCard}>
+        <View style={styles.salatHeader}>
+          <Text style={styles.salatTitle}>🕌 Today's Prayers</Text>
+          <Text style={styles.salatStats}>{salatStats.completed}/5</Text>
+        </View>
+        
+        <View style={styles.prayerGrid}>
+          {todayPrayers.map((prayer) => {
+            let iconName = 'ellipse-outline';
+            let iconColor = '#BDBDBD';
+            let bgStyle = styles.prayerUpcoming;
+            
+            if (prayer.completed) {
+              iconName = 'checkmark-circle';
+              iconColor = '#4CAF50';
+              bgStyle = styles.prayerCompleted;
+            } else if (prayer.status === 'missed') {
+              iconName = 'close-circle';
+              iconColor = '#F44336';
+              bgStyle = styles.prayerMissed;
+            } else if (prayer.status === 'pending') {
+              iconName = 'time';
+              iconColor = '#FF9800';
+              bgStyle = styles.prayerPending;
+            }
+            
+            return (
+              <TouchableOpacity
+                key={prayer.key}
+                style={[styles.prayerItem, bgStyle]}
+                onPress={() => handlePrayerToggle(prayer.key, prayer.completed)}
+              >
+                <Ionicons name={iconName} size={26} color={iconColor} />
+                <Text style={[
+                  styles.prayerName,
+                  prayer.completed && styles.prayerNameCompleted,
+                  prayer.status === 'missed' && !prayer.completed && styles.prayerNameMissed,
+                  prayer.status === 'pending' && styles.prayerNamePending,
+                ]}>
+                  {prayer.name}
+                </Text>
+                <Text style={[
+                  styles.prayerNameAr,
+                  prayer.completed && styles.prayerNameArCompleted,
+                ]}>
+                  {prayer.nameAr}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        
+        {/* Leaderboard Button */}
+        <TouchableOpacity 
+          style={styles.leaderboardButton}
+          onPress={() => navigation.navigate('SalatLeaderboard')}
+        >
+          <Ionicons name="trophy" size={18} color="#FFD700" />
+          <Text style={styles.leaderboardButtonText}>View Global Leaderboard</Text>
+          <Ionicons name="chevron-forward" size={18} color="#2c5f2d" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Upcoming Islamic Events Card */}
+      {calendarLoading ? (
+        <View style={styles.loadingCard}>
+          <ActivityIndicator size="small" color="#2c5f2d" />
+          <Text style={styles.loadingText}>Loading Islamic calendar...</Text>
+        </View>
+      ) : upcomingEvents.length > 0 && (
+        <View style={styles.eventsCard}>
+          <View style={styles.eventsHeader}>
+            <Ionicons name="calendar" size={20} color="#2c5f2d" />
+            <Text style={styles.eventsTitle}>Upcoming Events</Text>
+          </View>
+          
+          {upcomingEvents.map((event, index) => (
+            <TouchableOpacity 
+              key={index} 
+              style={[styles.eventItem, index === upcomingEvents.length - 1 && { borderBottomWidth: 0 }]}
+              onPress={() => Alert.alert(
+                `${event.emoji} ${event.name}`,
+                `${event.importance}\n\n📖 "${event.quranRef?.text || ''}"\n— Quran ${event.quranRef?.surah || ''}:${event.quranRef?.ayah || ''}`,
+                [{ text: 'OK' }]
+              )}
+            >
+              <View style={[styles.eventBadge, { backgroundColor: IslamicCalendarService.getEventColor(event.type) }]}>
+                <Text style={styles.eventEmoji}>{event.emoji}</Text>
+              </View>
+              <View style={styles.eventInfo}>
+                <Text style={styles.eventName}>{event.name}</Text>
+                <Text style={styles.eventDate}>{event.hijriDate}</Text>
+              </View>
+              <View style={styles.eventDays}>
+                <Text style={styles.eventDaysNumber}>{event.daysUntil}</Text>
+                <Text style={styles.eventDaysLabel}>{event.daysUntil === 1 ? 'day' : 'days'}</Text>
+              </View>
+            </TouchableOpacity>
+          ))}
+          
+          <Text style={styles.eventsTip}>Tap an event to learn more</Text>
+        </View>
+      )}
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -275,17 +475,331 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: '#f5f5f5',
   },
+  hijriContainer: {
+    backgroundColor: '#2c5f2d',
+    marginHorizontal: -20,
+    marginTop: -20,
+    paddingTop: 50,
+    paddingBottom: 15,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  hijriDateAr: {
+    fontSize: 22,
+    color: '#fff',
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  hijriDate: {
+    fontSize: 14,
+    color: '#E8F5E9',
+  },
+  hijriDay: {
+    fontSize: 12,
+    color: '#A5D6A7',
+    marginTop: 2,
+  },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     color: '#2c5f2d',
-    marginTop: 40,
+    marginTop: 20,
     marginBottom: 5,
   },
   subtitle: {
     fontSize: 18,
     color: '#666',
     marginBottom: 20,
+  },
+  // Today's Special Event Banner
+  todayEventBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 15,
+  },
+  todayEventEmoji: {
+    fontSize: 32,
+    marginRight: 12,
+  },
+  todayEventInfo: {
+    flex: 1,
+  },
+  todayEventTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  todayEventNameAr: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.9)',
+    marginTop: 2,
+  },
+  // Daily Quote Card
+  quoteCard: {
+    backgroundColor: '#E8F5E9',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#2c5f2d',
+  },
+  quoteHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  quoteLabel: {
+    fontSize: 12,
+    color: '#2c5f2d',
+    fontWeight: '600',
+    marginLeft: 6,
+    textTransform: 'uppercase',
+  },
+  quoteText: {
+    fontSize: 16,
+    color: '#333',
+    fontStyle: 'italic',
+    lineHeight: 24,
+  },
+  quoteRef: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 8,
+    textAlign: 'right',
+  },
+  // Loading card
+  loadingCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 30,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 10,
+    color: '#666',
+    fontSize: 14,
+  },
+  salatCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  salatHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  salatTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+  },
+  salatStats: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2c5f2d',
+  },
+  prayerGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  prayerItem: {
+    alignItems: 'center',
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: '#F5F5F5',
+    minWidth: 60,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  prayerUpcoming: {
+    backgroundColor: '#F5F5F5',
+    borderColor: '#E0E0E0',
+  },
+  prayerCompleted: {
+    backgroundColor: '#E8F5E9',
+    borderColor: '#81C784',
+  },
+  prayerMissed: {
+    backgroundColor: '#FFEBEE',
+    borderColor: '#EF9A9A',
+  },
+  prayerPending: {
+    backgroundColor: '#FFF3E0',
+    borderColor: '#FFB74D',
+  },
+  prayerName: {
+    fontSize: 11,
+    color: '#757575',
+    marginTop: 4,
+    fontWeight: '600',
+  },
+  prayerNameCompleted: {
+    color: '#388E3C',
+  },
+  prayerNameMissed: {
+    color: '#D32F2F',
+  },
+  prayerNamePending: {
+    color: '#F57C00',
+  },
+  prayerNameAr: {
+    fontSize: 12,
+    color: '#9E9E9E',
+    marginTop: 2,
+  },
+  prayerNameArCompleted: {
+    color: '#66BB6A',
+  },
+  leaderboardButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  leaderboardButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2c5f2d',
+    marginHorizontal: 8,
+  },
+  // Islamic Events Card
+  eventsCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  eventsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  eventsTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginLeft: 8,
+  },
+  eventItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+  },
+  eventBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 14,
+  },
+  eventEmoji: {
+    fontSize: 22,
+  },
+  eventInfo: {
+    flex: 1,
+  },
+  eventName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+  },
+  eventDate: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 2,
+  },
+  eventDays: {
+    alignItems: 'center',
+    minWidth: 55,
+    backgroundColor: '#F5F5F5',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+  },
+  eventDaysNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#2c5f2d',
+  },
+  eventDaysLabel: {
+    fontSize: 10,
+    color: '#666',
+    marginTop: -2,
+  },
+  eventsTip: {
+    fontSize: 11,
+    color: '#999',
+    textAlign: 'center',
+    marginTop: 10,
+    fontStyle: 'italic',
+  },
+  searchContainer: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  hadithTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginLeft: 8,
+    flex: 1,
+  },
+  refreshHadith: {
+    padding: 4,
+  },
+  hadithContent: {
+    paddingTop: 4,
+  },
+  hadithText: {
+    fontSize: 14,
+    color: '#444',
+    lineHeight: 22,
+    fontStyle: 'italic',
+  },
+  hadithNarrator: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 10,
+    fontWeight: '500',
+  },
+  hadithReference: {
+    fontSize: 11,
+    color: '#888',
+    marginTop: 4,
+  },
+  hadithEmpty: {
+    fontSize: 13,
+    color: '#888',
+    textAlign: 'center',
+    paddingVertical: 15,
   },
   searchContainer: {
     position: 'relative',

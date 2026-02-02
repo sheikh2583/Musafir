@@ -19,6 +19,7 @@ const ArabicWritingScreen = ({ navigation }) => {
   const [showResult, setShowResult] = useState(false);
 
   const viewShotRef = useRef();
+  const targetViewShotRef = useRef(); // Ref for the target word capture
   const currentPathRef = useRef([]);
 
   useEffect(() => {
@@ -79,20 +80,25 @@ const ArabicWritingScreen = ({ navigation }) => {
 
     try {
       setIsAnalyzing(true);
-      // Capture the canvas to a file first
-      const uri = await viewShotRef.current.capture();
 
-      // Read the file as Base64 string explicitly using Expo FileSystem
-      const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+      // 1. Capture User Drawing
+      const userUri = await viewShotRef.current.capture();
+      const userBase64 = await FileSystem.readAsStringAsync(userUri, { encoding: 'base64' });
 
-      const result = await scoreHandwriting(base64, currentWord);
+      // 2. Capture Target Word (Reference)
+      // We need to wait a tick if it wasn't rendered, but it should be rendered off-screen
+      const targetUri = await targetViewShotRef.current.capture();
+      const targetBase64 = await FileSystem.readAsStringAsync(targetUri, { encoding: 'base64' });
+
+      // 3. Compare locally
+      const result = await scoreHandwriting(userBase64, targetBase64);
 
       setScoreResult(result);
       setShowResult(true);
 
     } catch (error) {
-      console.log("AI Analysis failed silently:", error.message);
-      // Suppress UI error as requested
+      console.log("Analysis failed:", error);
+      Alert.alert("Error", "Could not analyze handwriting. " + error.message);
     } finally {
       setIsAnalyzing(false);
     }
@@ -120,7 +126,7 @@ const ArabicWritingScreen = ({ navigation }) => {
       </View>
 
       {/* Whiteboard Canvas */}
-      <ViewShot ref={viewShotRef} style={{ flex: 1 }} options={{ format: "jpg", quality: 0.8 }}>
+      <ViewShot ref={viewShotRef} style={{ flex: 1 }} options={{ format: "jpg", quality: 0.5, result: "tmpfile" }}>
         <View style={styles.canvasContainer} {...panResponder.panHandlers}>
           <Svg style={StyleSheet.absoluteFill}>
             {paths.map((path, index) => (
@@ -151,6 +157,44 @@ const ArabicWritingScreen = ({ navigation }) => {
           )}
         </View>
       </ViewShot>
+
+      {/* Hidden Reference View for Scoring */}
+      {/* This renders the target word EXACTLY same size/position as the canvas input would be if we traced it. 
+          We place it absolutely off-screen or behind. 
+          For simplicity in "tracing" scoring, we usually want the user to trace over the word. 
+          If the user is "copying" (looking above and writing below), pixel match will fail unless we normalize.
+          Assuming "Tracing" mode because `placeholderText` says "Trace the word".
+          If it's tracing mode, the word should be BEHIND the canvas for them to see.
+          But the current code puts the word in `wordContainer` ABOVE the canvas.
+          
+          If the user is supposed to COPY, pixel matching requires advanced normalization (CV).
+          If the user is supposed to TRACE, we should display the word IN the canvas.
+          
+          Code says "Trace the word or practice writing...". 
+          Let's assume we want to support "Tracing" because it's easier for local pixel match.
+          We will render the word into a hidden ViewShot that mimics the canvas area.
+      */}
+      <View style={{ position: 'absolute', opacity: 0, zIndex: -10, width: width - 30, height: height * 0.4 }}>
+        <ViewShot ref={targetViewShotRef} options={{ format: "jpg", quality: 0.5, result: "tmpfile" }}>
+          <View style={[styles.canvasContainer, { backgroundColor: '#FFFFFF', margin: 0 }]}>
+            {/* We render the text in the center, same as where user would write? 
+                    Actually, without a background guide, the user doesn't know size/position.
+                    For accurate pixel scoring, we strictly need a background template.
+                    
+                    I will render the Arabic word large in the center of this hidden view.
+                    AND I should probably show this as a "Ghost" in the real canvas if we want them to trace it.
+                    However, keeping changes minimal: I'll just render the word here.
+                    The user might fail if they write too small/large.
+                    Ideally, we'd add the ghost text to the main canvas too.
+                */}
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+              <Text style={{ fontSize: 100, fontWeight: 'bold', color: '#000' }}>
+                {currentWord?.arabic}
+              </Text>
+            </View>
+          </View>
+        </ViewShot>
+      </View>
 
       {/* Toolbar */}
       <View style={styles.toolbar}>
