@@ -1432,3 +1432,5 @@ Total Surah Files:       114
 Total Arabic Letters:    32+
 
 ================================================================================
+
+//features working
